@@ -1,0 +1,95 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { requirePermission } from "@/server/auth/guards";
+import { permissions } from "@/server/permissions/permissions";
+import { createKnowledgeDocument, knowledgeSourceTypes } from "@/lib/knowledge";
+
+const sourceTypesArray = [
+  "pdf", "docx", "txt", "csv", "excel", "faq", "website", "html", 
+  "product_catalog", "services_catalog", "policies", "terms", 
+  "pricing", "manual", "support_article", "json", "custom_text"
+] as const;
+
+const schema = z.object({
+  botId: z.string().min(1),
+  title: z.string().min(2),
+  sourceType: z.enum(sourceTypesArray),
+  categoryName: z.string().optional().default("تلقائي"),
+  collectionName: z.string().optional().default("عام"),
+  tags: z.string().optional(),
+  text: z.string().optional(),
+  sourceUrl: z.string().optional(),
+  isTemporary: z.string().optional(),
+  expiresDays: z.string().optional()
+});
+
+export async function POST(request: Request) {
+  try {
+    const session = await requirePermission(permissions.knowledgeManage);
+    const form = await request.formData();
+    const fileValue = form.get("file");
+    const body = schema.parse({
+      botId: form.get("botId"),
+      title: form.get("title"),
+      sourceType: normalizeSourceType(String(form.get("sourceType") || "custom_text"), fileValue),
+      categoryName: form.get("categoryName") || "تلقائي",
+      collectionName: form.get("collectionName") || "عام",
+      tags: form.get("tags") || "",
+      text: form.get("text") || "",
+      sourceUrl: form.get("sourceUrl") || "",
+      isTemporary: form.get("isTemporary") || "",
+      expiresDays: form.get("expiresDays") || ""
+    });
+    const isTemporary = body.isTemporary === "true" || body.isTemporary === "on";
+    const expiresDays = Math.max(1, Math.min(365, Number(body.expiresDays || 7)));
+
+    const file = fileValue instanceof File && fileValue.size > 0
+      ? {
+          name: fileValue.name,
+          type: fileValue.type,
+          size: fileValue.size,
+          buffer: Buffer.from(await fileValue.arrayBuffer())
+        }
+      : undefined;
+
+    const id = await createKnowledgeDocument({
+      tenantId: session.user.tenantId,
+      botId: body.botId,
+      title: body.title,
+      sourceType: body.sourceType,
+      categoryName: body.categoryName,
+      collectionName: body.collectionName,
+      tags: body.tags?.split(",") || [],
+      text: body.text,
+      sourceUrl: body.sourceUrl,
+      isTemporary,
+      expiresAt: isTemporary ? new Date(Date.now() + expiresDays * 24 * 60 * 60 * 1000) : undefined,
+      file
+    });
+
+    return NextResponse.json({ id });
+  } catch (error) {
+    console.error("KNOWLEDGE API ERROR:", error);
+    const message = error instanceof Error ? error.message : "تعذر حفظ مصدر المعرفة.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+function normalizeSourceType(value: string, fileValue: FormDataEntryValue | null) {
+  const raw = value.trim().toLowerCase();
+  const fileName = fileValue instanceof File ? fileValue.name.toLowerCase() : "";
+  const byExtension = fileName.endsWith(".pdf")
+    ? "pdf"
+    : fileName.endsWith(".docx")
+      ? "docx"
+      : fileName.endsWith(".xlsx") || fileName.endsWith(".xls")
+        ? "excel"
+        : fileName.endsWith(".csv")
+          ? "csv"
+          : fileName.endsWith(".json")
+            ? "json"
+            : fileName.endsWith(".txt")
+              ? "txt"
+              : "";
+  return byExtension || (raw === "auto" ? "custom_text" : raw);
+}

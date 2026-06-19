@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+.env*.local
+logs/
+*.log
+dist/
+build/
+.DS_Store
+Thumbs.db
+tsconfig.tsbuildinfo
+*.zip
