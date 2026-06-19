@@ -42,25 +42,8 @@ function buildSubject(input: {
   triggerReason: string;
   externalUserId: string;
 }) {
-  if (input.category === "technical_support") {
-    return `دعم فني - ${input.externalUserId}`;
-  }
-  if (input.category === "complaint") {
-    return `شكوى عميل - ${input.externalUserId}`;
-  }
-  if (input.category === "human_request") {
-    return `طلب موظف بشري - ${input.externalUserId}`;
-  }
-  if (input.category === "booking_request") {
-    return `طلب حجز عميل - ${input.externalUserId}`;
-  }
-  if (input.category === "sales_request") {
-    return `طلب مبيعات عميل - ${input.externalUserId}`;
-  }
-  if (input.category === "ai_failed") {
-    return `متابعة فشل AI - ${input.externalUserId}`;
-  }
-  return `تذكرة دعم - ${input.externalUserId}`;
+  const label = input.category.replace(/_/g, " ");
+  return `${label} - ${input.externalUserId}`;
 }
 
 export function classifyTicketIntent(message: string): TicketIntentClassification {
@@ -78,9 +61,26 @@ export function classifyTicketIntent(message: string): TicketIntentClassificatio
     };
   }
 
-  // NOTE: Booking and sales intents are detected language-agnostically by the AI itself.
-  // The model appends [CREATE_TICKET: booking_request] or [CREATE_TICKET: sales_request]
-  // at the end of its reply when it detects these intents (see enableTicketMarkers in build-system-prompt.ts).
+  // Internal intent detection starts a CRM ticket flow only.
+  // The official ticket is created later by the ticket-flow engine after required fields are collected.
+
+  if (/(اشتري|شراء|عايز اشتري|اريد الشراء|طلب شراء|order|buy|purchase|sales|quote|quotation|price quote)/i.test(normalized)) {
+    return {
+      shouldCreate: true,
+      category: "sales_request",
+      priority: "medium",
+      reason: "sales_request",
+    };
+  }
+
+  if (/(حجز|احجز|موعد|ميعاد|booking|book appointment|appointment|reservation|schedule)/i.test(normalized)) {
+    return {
+      shouldCreate: true,
+      category: "booking_request",
+      priority: "medium",
+      reason: "booking_request",
+    };
+  }
 
   if (/(شكوى|اشتكي|زعلان|غاضب|سيء|سىء|مش راضي|complaint|angry|bad service)/i.test(normalized)) {
     return {

@@ -11,6 +11,7 @@ import {
 import { connectToDatabase } from "@/lib/mongodb";
 import { absoluteUrl } from "@/lib/strings";
 import { getStripe } from "@/lib/stripe";
+import { publishRealtimeEvent } from "@/lib/realtime";
 
 function getSubscriptionPeriodEnd(subscription: Stripe.Subscription) {
   const itemPeriodEnd = subscription.items.data[0]?.current_period_end;
@@ -60,6 +61,7 @@ export async function getBillingCatalog(tenantId: string) {
           monthlyMessageLimit: subscription.monthlyMessageLimit,
           usedMessages: subscription.usedMessages,
           extraMessageCredits: subscription.extraMessageCredits,
+          graceMessageLimit: (subscription as any).graceMessageLimit ?? 20,
           currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() || "",
           planName: subscription.planId ? (subscription.planId as any).name : "الخطة المجانية"
         }
@@ -103,17 +105,43 @@ export async function assertCanSendAiMessage(tenantId: string) {
   const allowance = subscription.monthlyMessageLimit + subscription.extraMessageCredits;
   if (allowance <= 0) return;
 
-  if (subscription.usedMessages >= allowance) {
-    throw new Error("تم استهلاك رصيد رسائل AI لهذه الخطة. اشتر باقة رسائل إضافية أو غيّر الخطة.");
+  const grace = Number((subscription as any).graceMessageLimit ?? 20);
+  if (subscription.usedMessages >= allowance + Math.max(0, grace)) {
+    throw new Error("AI message limit exceeded. Add a message pack or upgrade the plan.");
   }
 }
 
 export async function recordAiMessageUsage(tenantId: string) {
-  await TenantSubscription.findOneAndUpdate(
+  const subscription = await TenantSubscription.findOneAndUpdate(
     { tenantId },
     { $inc: { usedMessages: 1 } },
     { new: true, upsert: false }
   );
+
+  if (!subscription) return;
+  const allowance = subscription.monthlyMessageLimit + subscription.extraMessageCredits;
+  if (allowance <= 0) return;
+
+  const used = subscription.usedMessages || 0;
+  const grace = Number((subscription as any).graceMessageLimit ?? 20);
+  const percent = Math.round((used / allowance) * 100);
+  const remaining = Math.max(allowance - used, 0);
+  const graceRemaining = Math.max(allowance + grace - used, 0);
+
+  if (percent >= 80 || used >= allowance) {
+    await publishRealtimeEvent(tenantId, "billing.usage.updated", {
+      usage: {
+        usedMessages: used,
+        monthlyMessageLimit: subscription.monthlyMessageLimit,
+        extraMessageCredits: subscription.extraMessageCredits,
+        graceMessageLimit: grace,
+        percent,
+        remaining,
+        graceRemaining,
+        level: used >= allowance ? "grace" : percent >= 90 ? "danger" : "warning",
+      },
+    }).catch(() => undefined);
+  }
 }
 
 export async function createStripeCheckout(input: {

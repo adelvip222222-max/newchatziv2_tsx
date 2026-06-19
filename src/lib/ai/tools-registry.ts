@@ -2,6 +2,7 @@ import { Task } from "@/lib/models/task";
 import { Lead } from "@/lib/models/lead";
 import { connectToDatabase } from "@/lib/mongodb";
 import { ensureTicketForConversation, type TicketCategory, type TicketPriority } from "@/lib/tickets";
+import { processTicketFlow } from "@/lib/crm/ticket-flow-engine";
 
 /**
  * Registry mapping tool names to their OpenAI function definitions.
@@ -194,6 +195,25 @@ export const TOOL_EXECUTORS: Record<string, Function> = {
     const botId = context.botId || context.conversation?.botId?.toString?.() || "";
     if (!botId) return "Cannot create ticket: missing botId in tool context.";
 
+    const flow = await processTicketFlow({
+      tenantId: context.tenantId,
+      botId,
+      conversationId: context.conversationId,
+      message: [title, description].filter(Boolean).join("\n"),
+      conversationMetadata: context.conversation?.metadata || undefined,
+      detectedIntent: {
+        shouldCreate: true,
+        category: (category || "general") as TicketCategory,
+        priority: (priority || "medium") as TicketPriority,
+        reason: "ai_tool_create_ticket",
+      },
+    });
+
+    if (flow.action !== "create_ticket") {
+      return `Ticket flow pending: ${flow.state?.status || "collecting_required_fields"}. Missing fields: ${(flow.missingFields || []).join(",")}.`;
+    }
+
+    const fields = flow.collectedFields || {};
     const ticket = await ensureTicketForConversation({
       tenantId: context.tenantId,
       botId,
@@ -201,12 +221,16 @@ export const TOOL_EXECUTORS: Record<string, Function> = {
       triggerReason: "ai_tool_create_ticket",
       category: (category || "general") as TicketCategory,
       priority: (priority || "medium") as TicketPriority,
-      subject: title?.trim() || "متابعة طلب عميل",
-      description: description || title || "",
+      subject: title?.trim() || String(fields.issueDescription || "").slice(0, 120),
+      description: String(fields.issueDescription || description || title || ""),
       source: "ai",
       metadata: {
         tool: "create_ticket",
         aiWorkflow: true,
+        customerName: fields.name || "",
+        customerPhone: fields.phone || "",
+        issueDescription: fields.issueDescription || "",
+        crmTicketFlow: flow.state || null,
       },
     });
 

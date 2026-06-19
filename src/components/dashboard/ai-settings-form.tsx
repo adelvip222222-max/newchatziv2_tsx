@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Save, Send } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/strings";
@@ -18,10 +18,24 @@ type AiSettingsFormProps = {
     language?: string;
     role?: string;
     tone?: string;
+    tonePreset?: string;
+    warmthLevel?: string;
+    salesStyle?: string;
+    supportStyle?: string;
     responseLength?: string;
     fallbackMessage?: string;
     useEmojis?: boolean;
+    emojiStyle?: string;
+    businessCategory?: string;
+    businessSubcategory?: string;
+    customInstructionsEn?: string;
   };
+};
+
+type BusinessCategory = {
+  id: string;
+  name: { ar: string; en: string };
+  subcategories: Array<{ id: string; name: { ar: string; en: string } }>;
 };
 
 const fallbackAr = "عذرًا، لم أفهم طلبك جيدًا. هل يمكنك التوضيح؟";
@@ -35,6 +49,13 @@ const copy = {
     role: "وظيفة البوت",
     tone: "نبرة الحديث",
     responseLength: "طول الإجابة",
+    emojiStyle: "أسلوب الإيموجي",
+    warmth: "درجة الحفاوة",
+    salesStyle: "أسلوب البيع",
+    supportStyle: "أسلوب الدعم",
+    businessCategory: "الفئة الرئيسية للنشاط",
+    businessSubcategory: "الفئة الفرعية",
+    customInstructionsEn: "تعليمات مخصصة بالإنجليزية",
     systemPrompt: "التعليمات المخصصة الإضافية (System Prompt)",
     fallback: "رسالة الاعتذار (Fallback Message)",
     emojis: "استخدام الرموز التعبيرية (Emojis)",
@@ -71,6 +92,13 @@ const copy = {
     role: "Bot role",
     tone: "Conversation tone",
     responseLength: "Response length",
+    emojiStyle: "Emoji style",
+    warmth: "Warmth level",
+    salesStyle: "Sales style",
+    supportStyle: "Support style",
+    businessCategory: "Business category",
+    businessSubcategory: "Business subcategory",
+    customInstructionsEn: "Custom English instructions",
     systemPrompt: "Additional custom instructions (System Prompt)",
     fallback: "Fallback message",
     emojis: "Use emojis",
@@ -112,6 +140,19 @@ export function AiSettingsForm({ tenantId, bots, aiModels, initial }: AiSettings
   const [selectedAiModel, setSelectedAiModel] = useState(
     initial?.aiModelId || aiModels.find((item) => item.isDefault)?.id || aiModels[0]?.id || ""
   );
+  const [categories, setCategories] = useState<BusinessCategory[]>([]);
+  const [businessCategory, setBusinessCategory] = useState(initial?.businessCategory || "");
+  const activeCategory = useMemo(
+    () => categories.find((item) => item.id === businessCategory),
+    [categories, businessCategory]
+  );
+
+  useEffect(() => {
+    fetch("/api/business-categories")
+      .then((res) => res.json())
+      .then((body) => setCategories(Array.isArray(body.categories) ? body.categories : []))
+      .catch(() => setCategories([]));
+  }, []);
 
   async function save(form: HTMLFormElement) {
     const data = new FormData(form);
@@ -122,11 +163,20 @@ export function AiSettingsForm({ tenantId, bots, aiModels, initial }: AiSettings
       temperature: Number(data.get("temperature") || 0.4),
       systemPrompt: String(data.get("systemPrompt") || DEFAULT_SYSTEM_PROMPT),
       language: String(data.get("language") || "auto"),
+      languageMode: String(data.get("language") || "auto"),
       role: String(data.get("role") || "assistant"),
       tone: String(data.get("tone") || "neutral"),
+      tonePreset: String(data.get("tonePreset") || "balanced"),
+      warmthLevel: String(data.get("warmthLevel") || "balanced"),
+      salesStyle: String(data.get("salesStyle") || "consultative"),
+      supportStyle: String(data.get("supportStyle") || "helpful"),
       responseLength: String(data.get("responseLength") || "medium"),
       fallbackMessage: String(data.get("fallbackMessage") || (locale === "ar" ? fallbackAr : fallbackEn)),
-      useEmojis: data.get("useEmojis") === "on"
+      useEmojis: data.get("useEmojis") === "on",
+      emojiStyle: String(data.get("emojiStyle") || "light"),
+      businessCategory: String(data.get("businessCategory") || ""),
+      businessSubcategory: String(data.get("businessSubcategory") || ""),
+      customInstructionsEn: String(data.get("customInstructionsEn") || "")
     };
 
     const response = await fetch("/api/settings/ai", {
@@ -238,7 +288,52 @@ export function AiSettingsForm({ tenantId, bots, aiModels, initial }: AiSettings
           ["medium", labels.medium],
           ["long", labels.long]
         ]} />
+        <Select label={labels.emojiStyle} id="emojiStyle" name="emojiStyle" defaultValue={initial?.emojiStyle || "light"} options={[
+          ["none", "None"],
+          ["light", "Light"],
+          ["friendly", "Friendly"],
+          ["expressive", "Expressive"]
+        ]} />
+        <Select label={labels.warmth} id="warmthLevel" name="warmthLevel" defaultValue={initial?.warmthLevel || "balanced"} options={[
+          ["professional", "Professional"],
+          ["balanced", "Balanced"],
+          ["friendly", "Friendly"],
+          ["enthusiastic", "Enthusiastic"]
+        ]} />
+        <Select label={labels.salesStyle} id="salesStyle" name="salesStyle" defaultValue={initial?.salesStyle || "consultative"} options={[
+          ["soft", "Soft"],
+          ["consultative", "Consultative"],
+          ["proactive", "Proactive"],
+          ["direct", "Direct"]
+        ]} />
+        <Select label={labels.supportStyle} id="supportStyle" name="supportStyle" defaultValue={initial?.supportStyle || "helpful"} options={[
+          ["helpful", "Helpful"],
+          ["technical", "Technical"],
+          ["empathetic", "Empathetic"],
+          ["step_by_step", "Step-by-step"]
+        ]} />
+        <div>
+          <label className="label" htmlFor="businessCategory">{labels.businessCategory}</label>
+          <select className="field" id="businessCategory" name="businessCategory" value={businessCategory} onChange={(event) => setBusinessCategory(event.target.value)}>
+            <option value="">-</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>{category.name[locale]}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="businessSubcategory">{labels.businessSubcategory}</label>
+          <select className="field" id="businessSubcategory" name="businessSubcategory" defaultValue={initial?.businessSubcategory || ""}>
+            <option value="">-</option>
+            {activeCategory?.subcategories.map((subcategory) => (
+              <option key={subcategory.id} value={subcategory.id}>{subcategory.name[locale]}</option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      <label className="label mt-4" htmlFor="customInstructionsEn">{labels.customInstructionsEn}</label>
+      <textarea className="field min-h-28" id="customInstructionsEn" name="customInstructionsEn" defaultValue={initial?.customInstructionsEn || ""} />
 
       <label className="label mt-4" htmlFor="systemPrompt">{labels.systemPrompt}</label>
       <textarea className="field min-h-36" id="systemPrompt" name="systemPrompt" defaultValue={initial?.systemPrompt || DEFAULT_SYSTEM_PROMPT} />

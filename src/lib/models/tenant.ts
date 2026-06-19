@@ -6,6 +6,9 @@ const tenantSchema = new Schema(
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     ownerId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     plan: { type: String, default: "free" },
+    businessCategory: { type: String, default: "" },
+    businessSubcategory: { type: String, default: "" },
+    metadata: { type: Schema.Types.Mixed, default: {} },
     isActive: { type: Boolean, default: true }
   },
   { timestamps: true }

@@ -10,7 +10,8 @@ const tenantSubscriptionSchema = new Schema(
     currentPeriodEnd: { type: Date, required: false },
     monthlyMessageLimit: { type: Number, default: 0 },
     usedMessages: { type: Number, default: 0 },
-    extraMessageCredits: { type: Number, default: 0 }
+    extraMessageCredits: { type: Number, default: 0 },
+    graceMessageLimit: { type: Number, default: 20, min: 0 }
   },
   { timestamps: true }
 );

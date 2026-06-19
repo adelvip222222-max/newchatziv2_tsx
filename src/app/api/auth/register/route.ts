@@ -2,16 +2,19 @@ import bcrypt from "bcryptjs";
 import { Types } from "mongoose";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Bot, Tenant, User, BillingPlan, TenantSubscription } from "@/lib/models";
+import { AiSetting, Bot, Tenant, User, BillingPlan, TenantSubscription } from "@/lib/models";
 import { connectToDatabase } from "@/lib/mongodb";
 import { slugifyArabic } from "@/lib/strings";
+import { buildCategoryPrompt } from "@/lib/business-categories";
 import { checkRateLimit, getClientIp, parseJsonBody } from "@/lib/api-security";
 
 const registerSchema = z.object({
   name: z.string().min(2).max(120),
   email: z.string().email().max(180),
   password: z.string().min(12).max(128).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, "Password must include uppercase, lowercase, and a number."),
-  tenantName: z.string().min(2).max(120)
+  tenantName: z.string().min(2).max(120),
+  businessCategory: z.string().max(80).optional(),
+  businessSubcategory: z.string().max(80).optional()
 });
 
 function getRegistrationError(error: unknown) {
@@ -40,12 +43,19 @@ export async function POST(request: Request) {
     const password = await bcrypt.hash(body.password, 12);
     const baseSlug = slugifyArabic(body.tenantName) || `tenant-${userId.toString().slice(-6)}`;
 
+    const categoryPromptEn = buildCategoryPrompt({
+      categoryId: body.businessCategory,
+      subcategoryId: body.businessSubcategory,
+    });
+
     const tenant = await Tenant.create({
       _id: tenantId,
       name: body.tenantName,
       slug: `${baseSlug}-${userId.toString().slice(-5)}`,
       ownerId: userId,
       plan: "free",
+      businessCategory: body.businessCategory || "",
+      businessSubcategory: body.businessSubcategory || "",
       isActive: true
     });
 
@@ -64,7 +74,31 @@ export async function POST(request: Request) {
       tenantId: tenant._id,
       name: "ChatZi Bot",
       description: "Default customer conversations bot. You can train it from the knowledge base page.",
+      businessCategory: body.businessCategory || "",
+      businessSubcategory: body.businessSubcategory || "",
       isActive: true
+    });
+
+    await AiSetting.create({
+      tenantId: tenant._id,
+      botId: bot._id,
+      language: "auto",
+      languageMode: "auto",
+      tone: "friendly",
+      tonePreset: "balanced",
+      warmthLevel: "friendly",
+      salesStyle: "consultative",
+      supportStyle: "helpful",
+      responseLength: "medium",
+      useEmojis: true,
+      emojiStyle: "light",
+      businessCategory: body.businessCategory || "",
+      businessSubcategory: body.businessSubcategory || "",
+      categoryPromptEn,
+      customInstructionsEn: "",
+      ticketPolicy: { requireName: true, requirePhone: true, requireDescription: true },
+      leadPolicy: { dedupeByPhone: true, syncFromTickets: true },
+      isEnabled: true,
     });
 
     const freePlan = await BillingPlan.findOne({ name: "Free" });

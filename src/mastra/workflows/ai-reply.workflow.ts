@@ -34,9 +34,14 @@ import {
   type TicketCategory,
   type TicketPriority,
 } from "@/lib/tickets";
+import {
+  buildTicketFlowContext,
+  clearTicketFlow,
+  processTicketFlow,
+  type TicketFlowResult,
+} from "@/lib/crm/ticket-flow-engine";
 import { isExplicitHumanHandoffRequest } from "@/lib/ai/handoff";
 import { detectAndReplyFast } from "@/lib/ai/fast-intent-responder";
-import { getSystemMessage } from "@/lib/i18n-server";
 
 const settingSchema = z
   .object({
@@ -44,10 +49,20 @@ const settingSchema = z
     fallbackMessage: z.string().optional(),
     temperature: z.number().optional(),
     language: z.string().optional(),
+    languageMode: z.string().optional(),
     role: z.string().optional(),
     tone: z.string().optional(),
+    tonePreset: z.string().optional(),
+    warmthLevel: z.string().optional(),
+    salesStyle: z.string().optional(),
+    supportStyle: z.string().optional(),
     responseLength: z.string().optional(),
     useEmojis: z.boolean().optional(),
+    emojiStyle: z.string().optional(),
+    businessCategory: z.string().optional(),
+    businessSubcategory: z.string().optional(),
+    categoryPromptEn: z.string().optional(),
+    customInstructionsEn: z.string().optional(),
     isEnabled: z.boolean().optional(),
   })
   .nullable()
@@ -165,6 +180,9 @@ const aiReplyRunContextSchema = aiReplyInputSchema.extend({
   modelCalled: z.boolean().optional(),
   tenantName: z.string().optional(),
   needsLeadInfo: z.boolean().optional(),
+  conversationMetadata: z.record(z.unknown()).optional(),
+  ticketFlow: z.any().optional(),
+  ticketFlowContext: z.string().optional(),
 });
 
 type AiReplyRunContext = z.infer<typeof aiReplyRunContextSchema>;
@@ -234,6 +252,9 @@ function buildRuntimeContext(inputData: AiReplyRunContext, ticketId?: string) {
     parts.push(`ticketRequired=true`);
     parts.push(`ticketCategory=${inputData.ticket.category}`);
     parts.push(`ticketReason=${inputData.ticket.reason}`);
+  }
+  if (inputData.ticketFlowContext) {
+    parts.push(inputData.ticketFlowContext);
   }
   if (inputData.reason === "explicit_human_request" || inputData.ticket?.category === "human_request") {
     parts.push("handoffRequested=true");
@@ -364,23 +385,35 @@ const loadConversationStep = createStep({
             fallbackMessage: setting.fallbackMessage || undefined,
             temperature: setting.temperature ?? undefined,
             language: setting.language || undefined,
+            languageMode: setting.languageMode || undefined,
             role: setting.role || undefined,
             tone: setting.tone || undefined,
+            tonePreset: setting.tonePreset || undefined,
+            warmthLevel: setting.warmthLevel || undefined,
+            salesStyle: setting.salesStyle || undefined,
+            supportStyle: setting.supportStyle || undefined,
             responseLength: setting.responseLength || undefined,
             useEmojis: setting.useEmojis ?? undefined,
+            emojiStyle: setting.emojiStyle || undefined,
+            businessCategory: setting.businessCategory || undefined,
+            businessSubcategory: setting.businessSubcategory || undefined,
+            categoryPromptEn: setting.categoryPromptEn || undefined,
+            customInstructionsEn: setting.customInstructionsEn || undefined,
             isEnabled: setting.isEnabled ?? undefined,
           }
         : null,
       tenantName: tenant.name,
+      conversationMetadata: (conversation.metadata && typeof conversation.metadata === "object" ? conversation.metadata : {}) as Record<string, unknown>,
       unifiedPrompt: buildUnifiedSystemPrompt({
         businessName: tenant.name,
         botName: bot.name || "Chatzi",
         role: setting?.role || "CRM assistant",
-        tone: setting?.tone || "professional, warm, marketing-focused",
+        tone: [setting?.tone, setting?.tonePreset, setting?.warmthLevel, setting?.salesStyle, setting?.supportStyle].filter(Boolean).join(", ") || "professional, warm, marketing-focused",
         responseLength: setting?.responseLength || "short",
-        language: setting?.language || "auto",
-        customInstructions: setting?.systemPrompt || "",
+        language: setting?.language || setting?.languageMode || "auto",
+        customInstructions: [setting?.categoryPromptEn, setting?.customInstructionsEn, setting?.systemPrompt].filter(Boolean).join("\n\n"),
         useEmojis: setting?.useEmojis ?? undefined,
+        emojiStyle: setting?.emojiStyle || undefined,
       }),
       generated: false,
     };
@@ -400,12 +433,12 @@ const fastReplyStep = createStep({
       message: inputData.message,
       botName: inputData.bot?.name,
       businessName: inputData.tenantName || inputData.bot?.name,
-      language: inputData.setting?.language || "auto",
+      language: inputData.setting?.language || inputData.setting?.languageMode || "auto",
       role: inputData.setting?.role || "assistant",
-      tone: inputData.setting?.tone || "friendly",
+      tone: [inputData.setting?.tone, inputData.setting?.tonePreset, inputData.setting?.warmthLevel].filter(Boolean).join(", ") || "friendly",
       responseLength: inputData.setting?.responseLength || "short",
       fallbackMessage: inputData.setting?.fallbackMessage,
-      customInstructions: inputData.setting?.systemPrompt,
+      customInstructions: [inputData.setting?.categoryPromptEn, inputData.setting?.customInstructionsEn, inputData.setting?.systemPrompt].filter(Boolean).join("\n\n"),
       useEmojis: inputData.setting?.useEmojis ?? undefined,
     });
 
@@ -443,10 +476,10 @@ const moderationStep = createStep({
           customerMessage: inputData.message,
           businessName: inputData.tenantName || inputData.bot?.name,
           botName: inputData.bot?.name || "Chatzi",
-          language: inputData.setting?.language || "auto",
+          language: inputData.setting?.language || inputData.setting?.languageMode || "auto",
           intent: "moderation",
           reason: moderation.reason || "moderation_blocked",
-          customInstructions: inputData.setting?.systemPrompt,
+          customInstructions: [inputData.setting?.categoryPromptEn, inputData.setting?.customInstructionsEn, inputData.setting?.systemPrompt].filter(Boolean).join("\n\n"),
           contextSummary: buildRuntimeContext(inputData),
         }),
         confidence: 100,
@@ -465,31 +498,44 @@ const routeHandoffStep = createStep({
   execute: async ({ inputData }) => {
     if (inputData.action) return inputData;
 
-    // If customer explicitly asks for a human, flag it and let the unified prompt shape the reply.
-    if (hasExplicitHumanRequest(inputData.message)) {
-      const ticket: AiReplyTicketContext = {
-        shouldCreate: true,
-        category: "human_request",
-        priority: "medium",
-        reason: "explicit_human_request",
-      };
-      // Pass runtime context forward; no customer-facing handoff copy is hardcoded here.
-      return { ...inputData, ticket, reason: "explicit_human_request" };
-    }
+    const detectedIntent = hasExplicitHumanRequest(inputData.message)
+      ? {
+          shouldCreate: true,
+          category: "human_request" as const,
+          priority: "medium" as const,
+          reason: "explicit_human_request",
+        }
+      : classifyTicketIntent(inputData.message);
 
-    const ticketIntent = classifyTicketIntent(inputData.message);
-    if (ticketIntent.shouldCreate) {
-      const ticket: AiReplyTicketContext = {
-        shouldCreate: ticketIntent.shouldCreate,
-        category: ticketIntent.category as AiReplyTicketContext["category"],
-        priority: ticketIntent.priority as AiReplyTicketContext["priority"],
-        reason: ticketIntent.reason,
-      };
-      // For human requests — create ticket and forward
-      return { ...inputData, ticket, reason: ticketIntent.reason };
-    }
+    const ticketFlow = await processTicketFlow({
+      tenantId: inputData.tenantId,
+      botId: inputData.botId,
+      conversationId: inputData.conversationId || "",
+      message: inputData.message,
+      conversationMetadata: inputData.conversationMetadata,
+      detectedIntent: detectedIntent.shouldCreate ? detectedIntent : null,
+    });
 
-    return inputData;
+    if (ticketFlow.action === "none") return inputData;
+
+    const flowContext = buildTicketFlowContext(ticketFlow);
+    const ticket: AiReplyTicketContext | undefined = ticketFlow.category
+      ? {
+          shouldCreate: ticketFlow.action === "create_ticket",
+          category: ticketFlow.category as AiReplyTicketContext["category"],
+          priority: (ticketFlow.priority || "medium") as AiReplyTicketContext["priority"],
+          reason: ticketFlow.reason || detectedIntent.reason,
+        }
+      : undefined;
+
+    return {
+      ...inputData,
+      ticket,
+      ticketFlow,
+      ticketFlowContext: flowContext,
+      needsLeadInfo: ticketFlow.action === "ask_missing_fields",
+      reason: ticketFlow.reason || detectedIntent.reason,
+    };
   },
 });
 
@@ -595,14 +641,15 @@ const generateReplyStep = createStep({
         businessName: inputData.tenantName || inputData.bot?.name,
         botName: inputData.bot?.name || "Chatzi",
         role: inputData.setting?.role,
-        tone: inputData.setting?.tone,
+        tone: [inputData.setting?.tone, inputData.setting?.tonePreset, inputData.setting?.warmthLevel, inputData.setting?.salesStyle, inputData.setting?.supportStyle].filter(Boolean).join(", "),
         responseLength: inputData.setting?.responseLength,
-        language: inputData.setting?.language || "auto",
-        customInstructions: inputData.setting?.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+        language: inputData.setting?.language || inputData.setting?.languageMode || "auto",
+        customInstructions: [inputData.setting?.categoryPromptEn, inputData.setting?.customInstructionsEn, inputData.setting?.systemPrompt || DEFAULT_SYSTEM_PROMPT].filter(Boolean).join("\n\n"),
         knowledgeInstructions: inputData.knowledgePrompt,
         contextSummary: runtimeContext,
         useEmojis: inputData.setting?.useEmojis ?? undefined,
-        enableTicketMarkers: true,
+        emojiStyle: inputData.setting?.emojiStyle || undefined,
+        enableTicketMarkers: false,
         needsLeadInfo: inputData.needsLeadInfo,
       }),
     ]
@@ -656,19 +703,11 @@ const generateReplyStep = createStep({
 
       const ticketMatch = replyText.match(/\[CREATE_TICKET:\s*(booking_request|sales_request)\]/i);
       if (ticketMatch) {
-        ticketToCreate = {
-          shouldCreate: true,
-          category: ticketMatch[1].toLowerCase() as "booking_request" | "sales_request",
-          priority: "medium",
-          reason: "ai_detected_intent",
-        };
         replyText = replyText.replace(ticketMatch[0], "").trim();
-        // Signal that we need customer lead info (name + phone) — detected by AI in any language
-        inputData = { ...inputData, needsLeadInfo: true };
       }
 
       const shouldHandoff =
-        inputData.reason === "explicit_human_request";
+        inputData.ticket?.shouldCreate === true && inputData.ticket?.category === "human_request";
 
       logger.info("ai.model_reply", {
         mode: "mastra_orchestrator",
@@ -730,11 +769,11 @@ const persistResultStep = createStep({
         customerMessage: inputData.message,
         businessName: inputData.tenantName || inputData.bot?.name,
         botName: inputData.bot?.name || "Chatzi",
-        language: inputData.setting?.language || "auto",
+        language: inputData.setting?.language || inputData.setting?.languageMode || "auto",
         intent: inputData.businessIntent || inputData.knowledge?.intent,
         reason: validation.reason || inputData.reason || "reply_validation_failed",
         hasKnowledge: Boolean(inputData.knowledgePrompt || inputData.knowledgeEntities?.entities?.length || inputData.knowledge?.results?.length),
-        customInstructions: inputData.setting?.systemPrompt,
+        customInstructions: [inputData.setting?.categoryPromptEn, inputData.setting?.customInstructionsEn, inputData.setting?.systemPrompt].filter(Boolean).join("\n\n"),
         knowledgeSummary: inputData.knowledgePrompt,
         contextSummary: buildRuntimeContext(inputData),
       });
@@ -753,12 +792,15 @@ const persistResultStep = createStep({
 
     let ticketId: string | undefined;
     let ticketNumber: number | null | undefined;
-    const shouldCreateTicket =
-      inputData.ticket?.shouldCreate ||
-      action === "handoff" ||
-      (!validation.valid && inputData.modelCalled);
+    const shouldCreateTicket = inputData.ticket?.shouldCreate === true;
 
     if (shouldCreateTicket) {
+      const flow = inputData.ticketFlow as TicketFlowResult | undefined;
+      const fields = flow?.collectedFields || {};
+      const issueDescription = String(fields.issueDescription || inputData.message || "").trim();
+      const customerName = String(fields.name || "").trim();
+      const customerPhone = String(fields.phone || "").trim();
+
       const ticket = await ensureTicketForConversation({
         tenantId: inputData.tenantId,
         botId: inputData.botId,
@@ -767,14 +809,17 @@ const persistResultStep = createStep({
           inputData.ticket?.reason ||
           inputData.reason ||
           validation.reason ||
-          "ai_followup_required",
-        category: (inputData.ticket?.category ||
-          (!validation.valid ? "ai_failed" : "human_request")) as TicketCategory,
+          "crm_ticket_flow_complete",
+        category: (inputData.ticket?.category || "general") as TicketCategory,
         priority: (inputData.ticket?.priority || "medium") as TicketPriority,
+        subject: issueDescription ? issueDescription.slice(0, 120) : undefined,
+        description: issueDescription,
         aiSummary: [
           `Reason: ${inputData.ticket?.reason || inputData.reason || validation.reason || "-"}`,
           `Channel: ${inputData.channel}`,
           `Knowledge confidence: ${inputData.confidence ?? "-"}`,
+          `Customer name captured: ${Boolean(customerName)}`,
+          `Customer phone captured: ${Boolean(customerPhone)}`,
           `Last customer message: ${inputData.message}`,
         ].join("\n"),
         metadata: {
@@ -782,18 +827,46 @@ const persistResultStep = createStep({
           action,
           validation,
           knowledgeConfidence: inputData.confidence,
+          customerName,
+          customerPhone,
+          issueDescription,
+          crmTicketFlow: flow?.state || null,
         },
       });
       ticketId = ticket?._id?.toString();
       ticketNumber = ticket?.number ?? undefined;
+
+      if (ticketId) {
+        await clearTicketFlow({
+          tenantId: inputData.tenantId,
+          botId: inputData.botId,
+          conversationId: inputData.conversationId,
+          ticketId,
+          ticketNumber: ticketNumber || undefined,
+        }).catch(() => undefined);
+      }
     }
 
     if (ticketId && !replyAcknowledgesHandoff(reply)) {
-      if (action === "handoff") {
-        reply += getSystemMessage("handoff_initiated", inputData.setting?.language);
-        validation = { valid: true };
-      } else if (ticketNumber) {
-        reply += getSystemMessage("ticket_created", inputData.setting?.language, { ticketNumber: ticketNumber.toString() });
+      const confirmation = await buildSafeCustomerReply({
+        tenantId: inputData.tenantId,
+        botId: inputData.botId,
+        customerMessage: inputData.message,
+        businessName: inputData.tenantName || inputData.bot?.name,
+        botName: inputData.bot?.name || "Chatzi",
+        language: inputData.setting?.language || inputData.setting?.languageMode || "auto",
+        intent: "ticket_created",
+        reason: "ticket_created",
+        customInstructions: [inputData.setting?.categoryPromptEn, inputData.setting?.customInstructionsEn, inputData.setting?.systemPrompt].filter(Boolean).join("\n\n"),
+        contextSummary: [
+          buildRuntimeContext(inputData, ticketId),
+          ticketNumber ? `ticketNumber=${ticketNumber}` : "",
+          `ticketCategory=${inputData.ticket?.category || "general"}`,
+          "replyRequirement=Confirm naturally that the CRM ticket/request was registered, mention the ticket number if available, and keep it in the customer's language and configured tone. Do not use a canned phrase.",
+        ].filter(Boolean).join("; "),
+      });
+      if (confirmation) {
+        reply = sanitizeCustomerReply(confirmation);
         validation = { valid: true };
       }
     }

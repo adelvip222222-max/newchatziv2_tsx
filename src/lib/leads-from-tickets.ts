@@ -38,9 +38,9 @@ export async function syncLeadFromTicket(input: { tenantId: string; ticketId: st
   const requester = ticket.requesterExternalId || conversation?.externalUserId || "";
   const textPool = [ticket.title, ticket.subject, ticket.description, ticket.aiSummary, ticket.triggerReason, requester];
 
-  const phone = normalizePhone(customFields.phone || metadata.phone || contact?.phone || extractPhoneFromText(...textPool));
+  const phone = normalizePhone(customFields.phone || metadata.phone || metadata.customerPhone || contact?.phone || extractPhoneFromText(...textPool));
   const email = customFields.email || metadata.email || contact?.email || extractEmailFromText(...textPool);
-  const name = customFields.name || metadata.customerName || contact?.name || requester || (phone ? `Lead ${phone.slice(-4)}` : "Potential customer");
+  const name = customFields.name || metadata.name || metadata.customerName || contact?.name || requester || (phone ? `Lead ${phone.slice(-4)}` : "Potential customer");
   const interest = customFields.interest || metadata.interest || ticket.subject || ticket.title || ticket.category || "";
   const sourceChannel = ticket.channel || conversation?.provider || conversation?.channel || "";
   const normalizedPhone = normalizePhone(phone);

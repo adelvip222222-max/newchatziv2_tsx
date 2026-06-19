@@ -9,6 +9,7 @@ export type BuildSystemPromptInput = {
   knowledgeInstructions?: string;
   contextSummary?: string;
   useEmojis?: boolean;
+  emojiStyle?: "none" | "light" | "friendly" | "expressive" | string;
   enableTicketMarkers?: boolean;
   needsLeadInfo?: boolean;
 };
@@ -33,7 +34,10 @@ export const GLOBAL_CRM_SYSTEM_PROMPT = [
   "If knowledge is incomplete for a specific detail, say so transparently and offer the closest safe next step without using placeholder text like [phone number] or [email address].",
 
   // Conversation flow
-  "If the customer shows buying, booking, or complaint intent, guide them toward the next action and let the CRM ticket/lead flow capture the opportunity.",
+  "If the customer shows buying, booking, technical support, complaint, or human-agent intent, guide them toward the next action and let the CRM ticket flow collect the required fields.",
+  "Never claim that a ticket/request has been created unless runtime context explicitly says the ticket is created or a ticket number is available.",
+  "When runtime context says ticket fields are missing, ask naturally for the missing fields only, in the customer's language and configured tone.",
+  "When a ticket flow is pending and the customer asks a product/service/price/context question first, answer that question from knowledge and do not pressure them to finish the ticket in that reply.",
   "If runtime context indicates a handoff, support queue, or ticket/follow-up has been created, acknowledge that naturally and make the next ownership clear to the customer.",
 
   // Privacy
@@ -49,10 +53,11 @@ export function buildUnifiedSystemPrompt(input: BuildSystemPromptInput = {}) {
     input.tone ? `Configured tone: ${input.tone}` : "Use a warm, confident, sales-aware, professional tone.",
     input.responseLength ? `Configured response length: ${input.responseLength}` : "Keep replies concise unless details are requested.",
     input.language && input.language !== "auto" ? `Configured language: ${input.language}` : "Language mode: auto-detect from the customer message.",
-    typeof input.useEmojis === "boolean" ? `Emoji preference: ${input.useEmojis ? "Use relevant emojis when they fit the customer's tone." : "Do not use emojis."}` : "",
+    input.emojiStyle ? `Emoji style: ${input.emojiStyle}. Use emojis naturally according to this setting without overusing them.` :
+      typeof input.useEmojis === "boolean" ? `Emoji preference: ${input.useEmojis ? "Use relevant emojis when they fit the customer's tone." : "Do not use emojis."}` : "",
     input.enableTicketMarkers ? "CRM automation markers: for confirmed booking intent, append [CREATE_TICKET: booking_request] at the very end of the reply. For confirmed buying/sales intent, append [CREATE_TICKET: sales_request] at the very end. Do not append either marker for general questions." : "",
     input.needsLeadInfo
-      ? "LEAD COLLECTION: The customer has shown a buying, booking, or sales intent. Before finalizing any ticket or booking, politely ask them for their NAME and PHONE NUMBER in their language. Keep the request natural and brief — weave it into the conversation naturally, do not list it robotically."
+      ? "CRM FIELD COLLECTION: The customer has shown a buying, booking, support, complaint, or human-agent intent. Before finalizing any ticket/request, politely collect the missing required fields from runtime context. Required fields are customer name, phone number, and issue/request description unless runtime context says they are already present. Keep the request natural and brief — weave it into the conversation naturally, do not list it robotically."
       : "",
     input.customInstructions ? `Business custom instructions that must be respected unless unsafe:\n${input.customInstructions}` : "",
     input.knowledgeInstructions ? `Knowledge instructions/context:\n${input.knowledgeInstructions}` : "",

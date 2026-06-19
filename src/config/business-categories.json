@@ -1,0 +1,101 @@
+[
+  {
+    "id": "healthcare",
+    "name": { "ar": "الرعاية الصحية", "en": "Healthcare" },
+    "subcategories": [
+      { "id": "dental_clinic", "name": { "ar": "عيادة أسنان", "en": "Dental clinic" } },
+      { "id": "beauty_clinic", "name": { "ar": "عيادة تجميل", "en": "Beauty clinic" } },
+      { "id": "pharmacy", "name": { "ar": "صيدلية", "en": "Pharmacy" } },
+      { "id": "physiotherapy", "name": { "ar": "مركز علاج طبيعي", "en": "Physiotherapy center" } },
+      { "id": "medical_center", "name": { "ar": "مركز طبي", "en": "Medical center" } }
+    ]
+  },
+  {
+    "id": "retail",
+    "name": { "ar": "تجارة التجزئة", "en": "Retail" },
+    "subcategories": [
+      { "id": "electronics_store", "name": { "ar": "متجر إلكترونيات", "en": "Electronics store" } },
+      { "id": "mobile_phones", "name": { "ar": "هواتف محمولة", "en": "Mobile phones" } },
+      { "id": "fashion", "name": { "ar": "أزياء وملابس", "en": "Fashion" } },
+      { "id": "furniture", "name": { "ar": "أثاث", "en": "Furniture" } },
+      { "id": "supermarket", "name": { "ar": "سوبر ماركت", "en": "Supermarket" } }
+    ]
+  },
+  {
+    "id": "technology",
+    "name": { "ar": "التقنية والبرمجيات", "en": "Technology" },
+    "subcategories": [
+      { "id": "saas", "name": { "ar": "منصة SaaS", "en": "SaaS" } },
+      { "id": "software_house", "name": { "ar": "شركة برمجيات", "en": "Software house" } },
+      { "id": "it_services", "name": { "ar": "خدمات تقنية", "en": "IT services" } },
+      { "id": "cybersecurity", "name": { "ar": "أمن سيبراني", "en": "Cybersecurity" } }
+    ]
+  },
+  {
+    "id": "professional_services",
+    "name": { "ar": "الخدمات المهنية", "en": "Professional services" },
+    "subcategories": [
+      { "id": "legal_office", "name": { "ar": "مكتب محاماة", "en": "Legal office" } },
+      { "id": "accounting", "name": { "ar": "محاسبة", "en": "Accounting" } },
+      { "id": "consulting", "name": { "ar": "استشارات", "en": "Consulting" } },
+      { "id": "marketing_agency", "name": { "ar": "وكالة تسويق", "en": "Marketing agency" } }
+    ]
+  },
+  {
+    "id": "education",
+    "name": { "ar": "التعليم والتدريب", "en": "Education" },
+    "subcategories": [
+      { "id": "courses_center", "name": { "ar": "مركز كورسات", "en": "Courses center" } },
+      { "id": "school", "name": { "ar": "مدرسة", "en": "School" } },
+      { "id": "university_services", "name": { "ar": "خدمات جامعية", "en": "University services" } },
+      { "id": "online_learning", "name": { "ar": "تعلم عن بعد", "en": "Online learning" } }
+    ]
+  },
+  {
+    "id": "real_estate",
+    "name": { "ar": "العقارات", "en": "Real estate" },
+    "subcategories": [
+      { "id": "brokerage", "name": { "ar": "وساطة عقارية", "en": "Brokerage" } },
+      { "id": "developer", "name": { "ar": "مطور عقاري", "en": "Developer" } },
+      { "id": "property_management", "name": { "ar": "إدارة عقارات", "en": "Property management" } }
+    ]
+  },
+  {
+    "id": "automotive",
+    "name": { "ar": "السيارات", "en": "Automotive" },
+    "subcategories": [
+      { "id": "car_showroom", "name": { "ar": "معرض سيارات", "en": "Car showroom" } },
+      { "id": "car_maintenance", "name": { "ar": "صيانة سيارات", "en": "Car maintenance" } },
+      { "id": "spare_parts", "name": { "ar": "قطع غيار", "en": "Spare parts" } }
+    ]
+  },
+  {
+    "id": "food",
+    "name": { "ar": "المطاعم والأغذية", "en": "Restaurants and food" },
+    "subcategories": [
+      { "id": "restaurant", "name": { "ar": "مطعم", "en": "Restaurant" } },
+      { "id": "cafe", "name": { "ar": "كافيه", "en": "Cafe" } },
+      { "id": "bakery", "name": { "ar": "مخبز", "en": "Bakery" } },
+      { "id": "catering", "name": { "ar": "خدمات ضيافة", "en": "Catering" } }
+    ]
+  },
+  {
+    "id": "home_services",
+    "name": { "ar": "خدمات المنازل", "en": "Home services" },
+    "subcategories": [
+      { "id": "maintenance", "name": { "ar": "صيانة منزلية", "en": "Maintenance" } },
+      { "id": "cleaning", "name": { "ar": "تنظيف", "en": "Cleaning" } },
+      { "id": "pest_control", "name": { "ar": "مكافحة حشرات", "en": "Pest control" } },
+      { "id": "moving", "name": { "ar": "نقل أثاث", "en": "Moving services" } }
+    ]
+  },
+  {
+    "id": "travel_hospitality",
+    "name": { "ar": "السفر والضيافة", "en": "Travel and hospitality" },
+    "subcategories": [
+      { "id": "travel_agency", "name": { "ar": "شركة سياحة", "en": "Travel agency" } },
+      { "id": "hotel", "name": { "ar": "فندق", "en": "Hotel" } },
+      { "id": "tourism_services", "name": { "ar": "خدمات سياحية", "en": "Tourism services" } }
+    ]
+  }
+]

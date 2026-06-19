@@ -16,6 +16,9 @@ const botSchema = new Schema(
     autoCloseEnabled: { type: Boolean, default: false },
     autoCloseAfterMinutes: { type: Number, default: 1440, min: 1 },
     autoCloseMessage: { type: String, default: "" },
+    businessCategory: { type: String, default: "" },
+    businessSubcategory: { type: String, default: "" },
+    metadata: { type: Schema.Types.Mixed, default: {} },
     isActive: { type: Boolean, default: true }
   },
   { timestamps: true }

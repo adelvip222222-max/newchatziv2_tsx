@@ -149,11 +149,20 @@ export async function getAiSettings(tenantId: string) {
           temperature: setting.temperature,
           systemPrompt: setting.systemPrompt,
           language: setting.language || "auto",
+          languageMode: setting.languageMode || setting.language || "auto",
           role: setting.role || "assistant",
           tone: setting.tone || "neutral",
+          tonePreset: setting.tonePreset || "balanced",
+          warmthLevel: setting.warmthLevel || "balanced",
+          salesStyle: setting.salesStyle || "consultative",
+          supportStyle: setting.supportStyle || "helpful",
           responseLength: setting.responseLength || "medium",
           fallbackMessage: setting.fallbackMessage || "",
-          useEmojis: setting.useEmojis ?? true
+          useEmojis: setting.useEmojis ?? true,
+          emojiStyle: setting.emojiStyle || "light",
+          businessCategory: setting.businessCategory || "",
+          businessSubcategory: setting.businessSubcategory || "",
+          customInstructionsEn: setting.customInstructionsEn || ""
         }
       : undefined
   };
