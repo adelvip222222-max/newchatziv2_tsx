@@ -134,8 +134,8 @@ export function buildTicketFlowContext(flow?: TicketFlowResult) {
     `crmTicketFlow.hasIssueDescription=${Boolean(fields.issueDescription)}`,
     "crmTicketFlow.customerVisibleTextPolicy=AI_GENERATED_ONLY",
   ];
-  if (flow.action === "ask_missing_fields") parts.push("crmTicketFlow.replyGoal=Generate a natural customer-facing reply asking only for the missing required fields. Do not say a ticket is created yet. Match the customer's language and bot settings.");
+  if (flow.action === "ask_missing_fields") parts.push("crmTicketFlow.replyGoal=Generate a natural customer-facing reply asking clearly for ALL the missing required fields in ONE single message. Do not say a ticket is created yet. Match the customer's language and bot settings.");
   if (flow.action === "answer_current_message") parts.push("crmTicketFlow.replyGoal=The customer switched topics temporarily. Answer the current question from business knowledge first. Keep the pending ticket flow open silently.");
-  if (flow.action === "create_ticket") parts.push("crmTicketFlow.replyGoal=The required ticket fields are complete. The system will create the CRM ticket. After creation, generate a natural confirmation in the customer's language.");
+  if (flow.action === "create_ticket") parts.push("crmTicketFlow.replyGoal=The required ticket fields are complete. The system will create the CRM ticket. After creation, you MUST reply with this exact phrase in Arabic if the language is Arabic: 'تم حفظ طلبك، سيتواصل معك موظفو خدمة العملاء في أقرب وقت. هل تريد خدمات أخرى؟'. If English, reply: 'Your request has been saved, our customer service team will contact you soon. Do you need any other services?'.");
   return parts.join("; ");
 }

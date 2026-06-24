@@ -144,6 +144,25 @@ export class AiAgentService {
     conversation.aiTurnCount += 1;
     await conversation.save();
 
+    // Send typing indicator to reduce perceived latency
+    try {
+      const { getAdapter } = await import("@/server/channels/registry");
+      const { Channel } = await import("../models");
+      const channel = await Channel.findById(conversation.channelIdentityId);
+      if (channel) {
+        const adapter = getAdapter(conversation.provider as any);
+        if (adapter && adapter.sendAction) {
+          adapter.sendAction({
+            channel,
+            externalUserId: conversation.externalUserId,
+            action: "typing_on"
+          }).catch(() => undefined);
+        }
+      }
+    } catch (e) {
+      // Ignore errors sending typing indicator
+    }
+
     // Prepare LLM Call
     const providers = await AiProvider.find({ isActive: true }).sort({ priority: 1, isDefault: -1 }).lean();
     const providerDoc = providers[0]; // Just take the highest priority one for simplicity here

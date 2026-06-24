@@ -38,6 +38,12 @@ export interface SendMessageParams {
   attachments?: NormalizedAttachment[];
 }
 
+export interface SendActionParams {
+  channel: ChannelDocument;
+  externalUserId: string;
+  action: "typing_on" | "typing_off" | "mark_seen";
+}
+
 export interface ProviderAdapter {
   provider: ChannelProvider;
   /**
@@ -48,6 +54,7 @@ export interface ProviderAdapter {
   verifyWebhook(request: Request, channel?: ChannelDocument, rawBody?: string): Promise<boolean>;
   normalizeIncoming(payload: any, channel?: ChannelDocument): Promise<NormalizedIncomingMessage[]>;
   sendMessage(params: SendMessageParams): Promise<{ success: boolean; externalMessageId?: string; error?: any }>;
+  sendAction?(params: SendActionParams): Promise<{ success: boolean; error?: any }>;
   parseDeliveryStatus(payload: any): Promise<{ externalMessageId: string; status: string; error?: any } | null>;
   getHealth(channel: ChannelDocument): Promise<{ status: "healthy" | "error" | "unconfigured"; message?: string }>;
 }

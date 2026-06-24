@@ -73,6 +73,7 @@ export async function classifyTicketMessageWithAi(input: {
     "If a pending flow exists and the customer asks for business information instead of providing missing fields, set action='answer_current_message' and keep the flow pending.",
     "Use semantic meaning, not language-specific keyword rules. Support any customer language.",
     "Extract only fields explicitly provided by the customer. Do not infer name, phone, or issue description.",
+    "IMPORTANT: For sales, purchase, or booking requests, 'issueDescription' is the specific product, service, or issue the customer wants.",
   ].join("\n");
   const userInput = JSON.stringify({
     latestCustomerMessage: input.message,

@@ -19,8 +19,8 @@ export async function GET(
         .sort({ chunkIndex: 1 })
         .lean(),
       KnowledgeEntity.find({ documentId: id, tenantId: session.user.tenantId })
-        .select("entityType entityValue originalText metadata")
-        .sort({ entityType: 1, entityValue: 1 })
+        .select("type name sourceText metadata")
+        .sort({ type: 1, name: 1 })
         .lean(),
     ]);
 
@@ -35,9 +35,9 @@ export async function GET(
       })),
       entities: entities.map((e: any) => ({
         id: e._id.toString(),
-        type: e.entityType,
-        value: e.entityValue,
-        originalText: e.originalText,
+        type: e.type,
+        value: e.name,
+        originalText: e.sourceText,
         metadata: e.metadata || {},
       })),
     });

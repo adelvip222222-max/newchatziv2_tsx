@@ -18,6 +18,10 @@ import {
   Clock3,
   Sparkles,
   ShieldCheck,
+  MoreVertical,
+  UserCheck,
+  Trash2,
+  Ban,
 } from "lucide-react";
 import {
   useCallback,
@@ -126,6 +130,11 @@ const copy = {
     messages: "رسائل",
     websiteVisitor: "زائر من الموقع",
     noContactData: "لا توجد بيانات تواصل محفوظة",
+    menuResolve: "إغلاق المحادثة",
+    menuHandoff: "تحويل لموظف بشري",
+    menuProfile: "معلومات العميل",
+    menuBlock: "حظر المستخدم",
+    menuDelete: "حذف المحادثة",
   },
   en: {
     inbox: "Conversations",
@@ -163,6 +172,11 @@ const copy = {
     messages: "Messages",
     websiteVisitor: "Website visitor",
     noContactData: "No saved contact methods",
+    menuResolve: "Resolve Conversation",
+    menuHandoff: "Assign to Human",
+    menuProfile: "Customer Profile",
+    menuBlock: "Block User",
+    menuDelete: "Delete Chat",
   },
 } as const;
 
@@ -332,12 +346,14 @@ export default function InboxClientUI({
   const [showThreadOnMobile, setShowThreadOnMobile] = useState(
     Boolean(requestedConversationId),
   );
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const messagesStateRef = useRef<MessageItem[]>(initialMessages);
   const activeConversationIdRef = useRef(activeConversation?.id || "");
   const incrementalMessageRefreshInFlightRef = useRef(false);
@@ -379,6 +395,16 @@ export default function InboxClientUI({
     textareaRef.current.style.height = "auto";
     textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
   }, [messageInput]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowOptionsMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchConversations = useCallback(
     async (options: { reset?: boolean; offset?: number } = {}) => {
@@ -898,11 +924,70 @@ export default function InboxClientUI({
                     </p>
                   </div>
 
-                  <div className="hidden items-center gap-2 sm:flex">
-                    <span className="badge-neutral">{activeStatusLabel}</span>
-                    <button className="btn-secondary px-3 py-2">
-                      {labels.resolve}
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <button
+                      type="button"
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition"
+                      aria-label="Search inside chat"
+                    >
+                      <Search size={20} />
                     </button>
+                    <div className="relative" ref={menuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                        className={`flex h-10 w-10 items-center justify-center rounded-full transition ${showOptionsMenu ? "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200" : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
+                        aria-label="More options"
+                      >
+                        <MoreVertical size={20} />
+                      </button>
+
+                      {showOptionsMenu && (
+                        <div className="absolute end-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white py-2 shadow-xl dark:border-slate-800 dark:bg-slate-900 shadow-slate-200/50 dark:shadow-none animate-in fade-in zoom-in-95 duration-100">
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); /* Implement resolve */ }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                          >
+                            <ShieldCheck size={18} className="text-slate-400" />
+                            {labels.menuResolve}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); /* Implement handoff */ }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                          >
+                            <UserCheck size={18} className="text-slate-400" />
+                            {labels.menuHandoff}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); /* Implement profile view */ }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                          >
+                            <UserRound size={18} className="text-slate-400" />
+                            {labels.menuProfile}
+                          </button>
+                          <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); /* Implement block */ }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                          >
+                            <Ban size={18} className="text-slate-400" />
+                            {labels.menuBlock}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); /* Implement delete */ }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 size={18} className="text-red-500 opacity-80" />
+                            {labels.menuDelete}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </header>

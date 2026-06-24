@@ -6,6 +6,7 @@ export const emailAdapter: ProviderAdapter = {
   async verifyWebhook(_request: Request, _channel?: ChannelDocument, _rawBody?: string) { return false; },
   async normalizeIncoming(_payload: any, _channel?: ChannelDocument) { return []; },
   async sendMessage(_params: SendMessageParams) { return { success: false, error: "EMAIL_NOT_IMPLEMENTED" }; },
+  async sendAction(_params: any) { return { success: true }; },
   async parseDeliveryStatus(_payload: any) { return null; },
   async getHealth(_channel: ChannelDocument) { return { status: "unconfigured" as const, message: "Email adapter not yet implemented" }; }
 };
@@ -15,6 +16,7 @@ export const apiAdapter: ProviderAdapter = {
   async verifyWebhook(_request: Request, _channel?: ChannelDocument, _rawBody?: string) { return true; },
   async normalizeIncoming(_payload: any, _channel?: ChannelDocument) { return []; },
   async sendMessage(_params: SendMessageParams) { return { success: false, error: "API_NOT_IMPLEMENTED" }; },
+  async sendAction(_params: any) { return { success: true }; },
   async parseDeliveryStatus(_payload: any) { return null; },
   async getHealth(_channel: ChannelDocument) { return { status: "unconfigured" as const, message: "API adapter not yet implemented" }; }
 };
@@ -35,6 +37,7 @@ export const webhookAdapter: ProviderAdapter = {
     }];
   },
   async sendMessage(_params: SendMessageParams) { return { success: true, externalMessageId: `webhook-${Date.now()}` }; },
+  async sendAction(_params: any) { return { success: true }; },
   async parseDeliveryStatus(_payload: any) { return null; },
   async getHealth(_channel: ChannelDocument) { return { status: "healthy" as const }; }
 };

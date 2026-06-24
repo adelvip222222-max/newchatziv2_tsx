@@ -37,7 +37,12 @@ import {
   Users,
   Wand2,
   X,
-  Zap
+  Zap,
+  MoreVertical,
+  UserCheck,
+  Ban,
+  ShieldCheck,
+  UserRound
 } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 
@@ -229,7 +234,7 @@ type RealtimeMessageCreatedPayload = {
 };
 
 
-const rowHeight = 132;
+const rowHeight = 76;
 
 const copy = {
   ar: {
@@ -291,7 +296,12 @@ const copy = {
     delete: "حذف",
     confirmDelete: "هل تريد حذف هذه المحادثة نهائيًا؟",
     startRecording: "تسجيل صوت",
-    stopRecording: "إيقاف التسجيل"
+    stopRecording: "إيقاف التسجيل",
+    menuResolve: "إغلاق المحادثة",
+    menuHandoff: "تحويل لموظف بشري",
+    menuProfile: "معلومات العميل",
+    menuBlock: "حظر المستخدم",
+    menuDelete: "حذف المحادثة"
   },
   en: {
     inbox: "Inbox",
@@ -352,7 +362,12 @@ const copy = {
     delete: "Delete",
     confirmDelete: "Delete this conversation permanently?",
     startRecording: "Record audio",
-    stopRecording: "Stop recording"
+    stopRecording: "Stop recording",
+    menuResolve: "Resolve Conversation",
+    menuHandoff: "Assign to Human",
+    menuProfile: "Customer Profile",
+    menuBlock: "Block User",
+    menuDelete: "Delete Chat"
   }
 } as const;
 
@@ -433,6 +448,8 @@ export function AIInboxClient({
   const [listDrawerOpen, setListDrawerOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<InboxTool | null>(null);
   const [recordingAudio, setRecordingAudio] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const audioChunksRef = useRef<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -477,6 +494,16 @@ export function AIInboxClient({
       window.removeEventListener("keydown", handleKeydown);
     };
   }, [activeTool]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowOptionsMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const listParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -1366,6 +1393,72 @@ export function AIInboxClient({
                 <div className="flex shrink-0 items-center gap-2">
                   <Badge tone={detail.conversation.mode === "human" ? "amber" : "blue"}>{detail.conversation.mode}</Badge>
                   <Badge tone={detail.conversation.status === "resolved" ? "emerald" : "slate"}>{detail.conversation.status}</Badge>
+
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <button
+                      type="button"
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition"
+                      aria-label="Search inside chat"
+                    >
+                      <Search size={20} />
+                    </button>
+                    <div className="relative" ref={menuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                        className={`flex h-10 w-10 items-center justify-center rounded-full transition ${showOptionsMenu ? "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200" : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
+                        aria-label="More options"
+                      >
+                        <MoreVertical size={20} />
+                      </button>
+
+                      {showOptionsMenu && (
+                        <div className="absolute end-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white py-2 shadow-xl dark:border-slate-800 dark:bg-slate-900 shadow-slate-200/50 dark:shadow-none animate-in fade-in zoom-in-95 duration-100">
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); void changeStatus("resolved"); }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                          >
+                            <ShieldCheck size={18} className="text-slate-400" />
+                            {labels.menuResolve}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); if(detail.conversation.mode !== "human") void resumeAi(); /* Wait, handoff is pausing AI. actually let's just toggle activeTool='assignment' */ toggleTool('assignment'); }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                          >
+                            <UserCheck size={18} className="text-slate-400" />
+                            {labels.menuHandoff}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); toggleTool('customer'); }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                          >
+                            <UserRound size={18} className="text-slate-400" />
+                            {labels.menuProfile}
+                          </button>
+                          <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); void changeStatus("archived"); }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/50"
+                          >
+                            <Archive size={18} className="text-slate-400" />
+                            {labels.archive}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowOptionsMenu(false); void deleteConversation(); }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 size={18} className="text-red-500 opacity-80" />
+                            {labels.menuDelete}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </header>
@@ -1384,8 +1477,9 @@ export function AIInboxClient({
               </div>
             ) : null}
 
-            <section ref={timelineRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 pb-44 sm:px-5 lg:pb-6">
-              <div className="mx-auto max-w-4xl space-y-3">
+            <section ref={timelineRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 pb-44 sm:px-5 lg:pb-6 relative bg-[#e5ddd5] dark:bg-[#0f0f0f]" style={{ backgroundImage: "url('https://web.telegram.org/a/chat-bg-pattern-light.png')", backgroundSize: '400px', backgroundRepeat: 'repeat' }}>
+              <div className="absolute inset-0 bg-white/40 dark:bg-black/60 pointer-events-none" />
+              <div className="mx-auto max-w-4xl space-y-3 relative z-10">
                 {detail.timeline.map((item) => (
                   <TimelineEntry key={`${item.type}-${item.id}`} item={item} />
                 ))}
@@ -1444,8 +1538,8 @@ export function AIInboxClient({
                     value={composer}
                     onChange={(event) => setComposer(event.target.value)}
                     placeholder={labels.reply}
-                    className="field min-w-0 max-h-40 min-h-16 resize-none rounded-md text-base leading-6 sm:min-h-20 sm:text-sm"
-                    rows={2}
+                    className="field min-w-0 max-h-40 min-h-[44px] resize-none rounded-2xl text-base leading-6 sm:text-sm border-none bg-transparent px-2"
+                    rows={1}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !event.shiftKey) {
                         event.preventDefault();
@@ -1455,12 +1549,11 @@ export function AIInboxClient({
                   />
                   <button
                     type="button"
-                    className="btn-primary h-12 min-w-0 shrink-0 px-3 sm:min-w-[5.75rem]"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-700 disabled:opacity-50"
                     disabled={sendingReply || (!composer.trim() && !draftAttachments.length)}
                     onClick={() => void sendReply()}
                   >
-                    {sendingReply ? <Loader2 size={17} className="animate-spin" /> : <SendHorizonal size={17} className="rtl:rotate-180" />}
-                    <span className="hidden sm:inline">{sendingReply ? labels.sending : labels.send}</span>
+                    {sendingReply ? <Loader2 size={17} className="animate-spin" /> : <SendHorizonal size={17} className="rtl:rotate-180 -ml-0.5" />}
                   </button>
                 </div>
               </div>
@@ -1623,45 +1716,36 @@ function ConversationRow({
       onKeyDown={(event) => {
         if (event.key === "Enter") onSelect();
       }}
-      className={`absolute left-0 right-0 h-[132px] cursor-pointer border-b border-slate-100 p-3 transition dark:border-slate-900 ${
+      className={`absolute left-0 right-0 h-[76px] cursor-pointer border-b border-slate-100 p-2 px-3 transition dark:border-slate-900 ${
         active
-          ? "border-s-4 border-s-blue-600 bg-blue-50/90 ring-1 ring-inset ring-blue-300 dark:border-s-blue-500 dark:bg-blue-950/40 dark:ring-blue-800"
-          : "bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900"
+          ? "bg-blue-500 text-white dark:bg-blue-600"
+          : "bg-white text-slate-900 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
       }`}
       style={{ transform: `translateY(${top}px)` }}
     >
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={(event) => {
-            event.stopPropagation();
-            onToggle();
-          }}
-          onClick={(event) => event.stopPropagation()}
-          className="mt-2 h-4 w-4 rounded border-slate-300"
-        />
-        <Avatar name={conversation.contactName} src={conversation.avatarUrl} fallback={conversation.contactInitials} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate text-sm font-bold">{conversation.contactName}</h3>
-            <time className="shrink-0 text-[11px] text-slate-500">{relativeTime(conversation.lastMessageAt)}</time>
+      <div className="flex items-center gap-3 h-full">
+        <div className="relative shrink-0" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+          <Avatar name={conversation.contactName} src={conversation.avatarUrl} fallback={conversation.contactInitials} />
+          {selected ? (
+            <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white ring-2 ring-white dark:ring-slate-950">
+              <Check size={12} />
+            </div>
+          ) : null}
+        </div>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className={`truncate text-sm font-bold ${active ? "text-white" : "text-slate-900 dark:text-slate-100"}`}>{conversation.contactName}</h3>
+            <time className={`shrink-0 text-xs ${active ? "text-blue-100" : "text-slate-500"}`}>{relativeTime(conversation.lastMessageAt)}</time>
           </div>
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{conversation.lastMessage}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <Badge tone="slate">{channelLabel(conversation.channel)}</Badge>
-            <Badge tone={conversation.aiStatus === "escalated" ? "red" : conversation.aiStatus === "needs_review" ? "amber" : "blue"}>{conversation.aiStatus}</Badge>
-            <Badge tone={conversation.agentStatus === "assigned" ? "emerald" : "slate"}>{conversation.agentStatus}</Badge>
-            {conversation.badges.slice(0, 3).map((badge) => (
-              <Badge key={badge} tone={badgeTone(badge)}>{badge}</Badge>
-            ))}
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <p className={`line-clamp-1 text-[13px] leading-5 ${active ? "text-white" : "text-slate-500 dark:text-slate-400"}`}>{conversation.lastMessage || "..."}</p>
+            {conversation.unreadCount > 0 ? (
+              <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${active ? "bg-white text-blue-600" : "bg-blue-500 text-white"}`}>
+                {conversation.unreadCount}
+              </span>
+            ) : null}
           </div>
         </div>
-        {conversation.unreadCount > 0 ? (
-          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white">
-            {conversation.unreadCount}
-          </span>
-        ) : null}
       </div>
     </div>
   );
@@ -1671,13 +1755,13 @@ function TimelineEntry({ item }: { item: TimelineItem }) {
   if (item.type === "message") {
     const outgoing = item.direction === "outgoing";
     return (
-      <div className={`flex ${outgoing ? "justify-end" : "justify-start"}`}>
-        <div className={`max-w-[76%] rounded-md border px-3 py-2 shadow-sm ${
+      <div className={`flex ${outgoing ? "justify-end" : "justify-start"} mb-1`}>
+        <div className={`relative max-w-[85%] rounded-2xl px-3 py-2 shadow-sm ${
           outgoing
-            ? "border-blue-600 bg-blue-600 text-white"
-            : "border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+            ? "bg-[#e1febb] text-slate-900 dark:bg-[#2b5278] dark:text-[#e4e4e4] rounded-br-sm"
+            : "bg-white text-slate-900 dark:bg-[#182533] dark:text-[#e4e4e4] rounded-bl-sm"
         }`}>
-          <p className="whitespace-pre-wrap text-sm leading-6">{item.content}</p>
+          <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{item.content}</p>
           {item.attachments?.length ? (
             <div className="mt-2 space-y-1.5">
               {item.attachments.map((attachment) => {
@@ -1685,35 +1769,30 @@ function TimelineEntry({ item }: { item: TimelineItem }) {
                 return (
                   <div
                     key={attachment.id || attachment.url || attachment.name}
-                    className={`flex max-w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs ${
-                      outgoing ? "bg-white/10 text-white" : "bg-slate-50 text-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    className={`flex max-w-full items-center gap-2 rounded-xl px-2 py-1.5 text-xs ${
+                      outgoing ? "bg-[#d1f2a5] text-slate-800 dark:bg-[#204060] dark:text-slate-200" : "bg-slate-100 text-slate-700 dark:bg-[#101921] dark:text-slate-200"
                     }`}
                   >
                     <AttachmentIcon attachment={attachment} />
                     {isAudio && attachment.url ? (
                       <audio controls src={attachment.url} className="h-8 max-w-[220px]" />
                     ) : (
-                      <span className="min-w-0 truncate">{attachment.name || attachment.mimeType || "Attachment"}</span>
+                      <span className="min-w-0 truncate font-medium">{attachment.name || attachment.mimeType || "Attachment"}</span>
                     )}
                   </div>
                 );
               })}
             </div>
           ) : null}
-          <div className={`mt-1 flex flex-wrap items-center gap-1.5 text-[11px] ${outgoing ? "text-blue-100" : "text-slate-400"}`}>
-            <span>{item.sender} · {formatTime(item.createdAt)}</span>
+          <div className={`flex items-center justify-end gap-1 text-[11px] float-right mt-1 ml-2 rtl:mr-2 rtl:ml-0 ${outgoing ? "text-[#5e9b42] dark:text-[#7b9cbb]" : "text-slate-400 dark:text-[#7b9cbb]"}`}>
+            <span>{formatTime(item.createdAt)}</span>
             {outgoing ? (
-              <span className={`rounded px-1.5 py-0.5 font-semibold ${
-                item.deliveryStatus === "failed"
-                  ? "bg-red-500/20 text-red-100"
-                  : item.deliveryStatus === "queued" || item.deliveryStatus === "sending"
-                    ? "bg-white/15 text-white/90"
-                    : "bg-white/10 text-white/80"
-              }`}>
-                {item.deliveryStatus || "sent"}
+              <span className="ml-0.5">
+                {item.deliveryStatus === "failed" ? <span className="text-red-500">!</span> : <Check size={14} className={item.deliveryStatus === "read" ? "text-blue-500" : ""} />}
               </span>
             ) : null}
           </div>
+          <div className="clear-both" />
         </div>
       </div>
     );

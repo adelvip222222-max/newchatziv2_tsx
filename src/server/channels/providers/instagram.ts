@@ -184,6 +184,33 @@ export const instagramAdapter: ProviderAdapter = {
     return { success: true, externalMessageId };
   },
 
+  async sendAction(params: import("../types").SendActionParams): Promise<{ success: boolean; error?: any }> {
+    const config = params.channel?.config as Record<string, any> | undefined;
+    const encryptedToken = config?.pageAccessTokenEncrypted as string | undefined;
+    if (!encryptedToken) return { success: false, error: "MISSING_PAGE_ACCESS_TOKEN" };
+
+    const pageAccessToken = decryptSecret(encryptedToken);
+    if (!pageAccessToken) return { success: false, error: "PAGE_ACCESS_TOKEN_DECRYPT_FAILED" };
+
+    const url = `${META_GRAPH_BASE}/me/messages`;
+    const body = JSON.stringify({
+      recipient: { id: params.externalUserId },
+      sender_action: params.action
+    });
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${pageAccessToken}` },
+        body,
+      });
+      if (!response.ok) return { success: false, error: "INSTAGRAM_API_ERROR" };
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: "NETWORK_ERROR" };
+    }
+  },
+
   async parseDeliveryStatus(payload: any): Promise<{ externalMessageId: string; status: string; error?: any } | null> {
     for (const entry of payload.entry || []) {
       for (const item of entry.messaging || []) {

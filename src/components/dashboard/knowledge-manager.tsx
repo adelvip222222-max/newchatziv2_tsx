@@ -137,6 +137,7 @@ export function KnowledgeManager({ bots, categories, documents }: KnowledgeManag
   const [detailsDocumentId, setDetailsDocumentId] = useState<string | null>(null);
   const [detailsDocumentTitle, setDetailsDocumentTitle] = useState("");
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [processingDocs, setProcessingDocs] = useState<Set<string>>(new Set());
 
   const sourceType = detectSourceType(selectedFile);
   const globalHealth = useMemo(() => getGlobalHealth(documents), [documents]);
@@ -167,12 +168,60 @@ export function KnowledgeManager({ bots, categories, documents }: KnowledgeManag
   async function handleRewrite(docId: string) {
     try {
       setLoading(true);
+      setProcessingDocs(prev => new Set(prev).add(docId));
       const res = await fetch(`/api/knowledge/${docId}/rewrite`, { method: "POST" });
       if (!res.ok) throw new Error();
       setSuccess(isAr ? "بدأت إعادة الصياغة بالذكاء الاصطناعي." : "AI rewrite started.");
       router.refresh();
     } catch {
       setError(isAr ? "تعذر بدء إعادة الصياغة" : "Failed to start rewrite");
+    } finally {
+      setLoading(false);
+      setProcessingDocs(prev => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
+  }
+
+  async function handleRetrain(docId: string) {
+    try {
+      setLoading(true);
+      setProcessingDocs(prev => new Set(prev).add(docId));
+      const res = await fetch(`/api/knowledge/retrain`, { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId: docId }) 
+      });
+      if (!res.ok) throw new Error();
+      setSuccess(isAr ? "تم إعادة التدريب بنجاح." : "Retraining completed.");
+      router.refresh();
+    } catch {
+      setError(isAr ? "تعذر بدء التدريب" : "Failed to start training");
+    } finally {
+      setLoading(false);
+      setProcessingDocs(prev => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
+  }
+
+  async function handleRetrainAll() {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/knowledge/retrain`, { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ botId: selectedBot }) 
+      });
+      if (!res.ok) throw new Error();
+      setSuccess(isAr ? "تم إرسال جميع المصادر المتأخرة للتدريب." : "All pending sources sent for retraining.");
+      router.refresh();
+    } catch {
+      setError(isAr ? "تعذر بدء التدريب الشامل" : "Failed to start global training");
     } finally {
       setLoading(false);
     }
@@ -251,25 +300,37 @@ export function KnowledgeManager({ bots, categories, documents }: KnowledgeManag
           </div>
         </article>
         <article className="panel p-4">
-          <p className="text-sm text-slate-500">{isAr ? "المصادر الجاهزة / المشاكل" : "Ready / issues"}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">{isAr ? "المصادر الجاهزة / المشاكل" : "Ready / issues"}</p>
+            {issueCount > 0 && (
+              <button type="button" onClick={handleRetrainAll} className="btn-secondary py-1 text-xs px-2" disabled={!selectedBot || loading}>
+                <DatabaseZap size={14} /> {isAr ? "تدريب الكل" : "Retrain All"}
+              </button>
+            )}
+          </div>
           <p className="mt-2 text-2xl font-bold text-ink">{readyCount} / {issueCount}</p>
         </article>
       </section>
 
       <form onSubmit={submitKnowledge} className="panel overflow-hidden">
         <div className="border-b border-slate-100 p-5 dark:border-slate-800">
-          <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-primary-50 p-2 text-primary-700 dark:bg-primary-950/30 dark:text-primary-300">
-              <DatabaseZap size={22} />
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-primary-50 p-2 text-primary-700 dark:bg-primary-950/30 dark:text-primary-300">
+                <DatabaseZap size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-ink">{isAr ? "إضافة معرفة دفعة واحدة" : "Add bulk knowledge"}</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {isAr
+                    ? "اكتب البيانات في المحرر أو ارفع PDF / Word / Excel / JSON وسيتم استخراج النص وتصنيفه تلقائيًا إلى فئات المعرفة."
+                    : "Write in the editor or upload PDF / Word / Excel / JSON. The system extracts text and auto-classifies it."}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-ink">{isAr ? "إضافة معرفة دفعة واحدة" : "Add bulk knowledge"}</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {isAr
-                  ? "اكتب البيانات في المحرر أو ارفع PDF / Word / Excel / JSON وسيتم استخراج النص وتصنيفه تلقائيًا إلى فئات المعرفة."
-                  : "Write in the editor or upload PDF / Word / Excel / JSON. The system extracts text and auto-classifies it."}
-              </p>
-            </div>
+            <a href="/templates/chatzi-knowledge-template-ar.txt" download className="btn-secondary whitespace-nowrap bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
+              <FileText size={16} /> {isAr ? "تحميل نموذج بيانات جاهز 📄" : "Download Template 📄"}
+            </a>
           </div>
         </div>
 
@@ -396,9 +457,15 @@ export function KnowledgeManager({ bots, categories, documents }: KnowledgeManag
                         <span className="inline-flex items-center gap-1"><FileSpreadsheet size={13} /> {sourceTypeLabel(doc.sourceType, isAr)}</span>
                       </td>
                       <td className="p-3">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${doc.status === "ready" ? "bg-emerald-50 text-emerald-700" : doc.status === "error" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
-                          {statusLabel(doc.status, isAr)}
-                        </span>
+                        {processingDocs.has(doc.id) ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                            <Loader2 size={12} className="animate-spin" /> {isAr ? "جاري التدريب..." : "Processing..."}
+                          </span>
+                        ) : (
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${doc.status === "ready" ? "bg-emerald-50 text-emerald-700" : doc.status === "error" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
+                            {statusLabel(doc.status, isAr)}
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-slate-600">{doc.chunkCount}</td>
                       <td className="p-3 text-slate-600">{doc.embeddingCount}</td>
@@ -407,10 +474,13 @@ export function KnowledgeManager({ bots, categories, documents }: KnowledgeManag
                         <button type="button" onClick={() => { setDetailsDocumentId(doc.id); setDetailsDocumentTitle(doc.title); }} className="p-1 text-slate-400 hover:text-blue-600" title={isAr ? "التفاصيل" : "Details"}>
                           <Eye size={16} />
                         </button>
-                        <button type="button" onClick={() => handleRewrite(doc.id)} className="p-1 text-slate-400 hover:text-amber-600" title={isAr ? "إعادة الصياغة بالذكاء الاصطناعي" : "AI Rewrite"}>
+                        <button type="button" onClick={() => handleRewrite(doc.id)} disabled={processingDocs.has(doc.id)} className="p-1 text-slate-400 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed" title={isAr ? "إعادة الصياغة بالذكاء الاصطناعي" : "AI Rewrite"}>
                           <RefreshCcw size={16} />
                         </button>
-                        <button type="button" onClick={() => handleDelete(doc.id)} className="p-1 text-slate-400 hover:text-red-600" title={isAr ? "حذف" : "Delete"}>
+                        <button type="button" onClick={() => handleRetrain(doc.id)} disabled={processingDocs.has(doc.id)} className="p-1 text-slate-400 hover:text-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed" title={isAr ? "إجبار إعادة التدريب" : "Force Retrain"}>
+                          <DatabaseZap size={16} />
+                        </button>
+                        <button type="button" onClick={() => handleDelete(doc.id)} disabled={processingDocs.has(doc.id)} className="p-1 text-slate-400 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed" title={isAr ? "حذف" : "Delete"}>
                           <Trash2 size={16} />
                         </button>
                       </td>

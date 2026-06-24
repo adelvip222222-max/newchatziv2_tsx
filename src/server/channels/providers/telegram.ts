@@ -87,6 +87,28 @@ export const telegramAdapter: ProviderAdapter = {
     }
   },
 
+  async sendAction(params: import("../types").SendActionParams): Promise<{ success: boolean; error?: any }> {
+    const token = resolveTelegramToken(params.channel);
+    if (!token) return { success: false, error: "Bot token not configured" };
+
+    let actionStr = "typing";
+    if (params.action === "typing_on") actionStr = "typing";
+    else if (params.action === "typing_off") return { success: true }; // Telegram doesn't have an explicit typing_off, it times out or clears on message send
+
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: params.externalUserId, action: actionStr })
+      });
+      const data = await response.json();
+      if (data.ok) return { success: true };
+      return { success: false, error: data.description };
+    } catch (error) {
+      return { success: false, error };
+    }
+  },
+
   async parseDeliveryStatus(payload: any) {
     return null; // Telegram doesn't send delivery receipts by default
   },

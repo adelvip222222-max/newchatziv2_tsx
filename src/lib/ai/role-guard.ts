@@ -24,9 +24,9 @@ const ROLE_REQUIRED_TOOLS: Record<string, string[]> = {
 
 // Tools that are BLOCKED for a given role (overrides allowedTools)
 const ROLE_BLOCKED_TOOLS: Record<string, string[]> = {
-  receptionist: ["save_lead_data", "create_ticket", "save_extracted_data"],
+  receptionist: ["save_extracted_data"],
   support: ["save_lead_data"],
-  sales: ["create_ticket"]
+  sales: [] // Allow sales to create tickets (e.g., sales orders)
 };
 
 /**
