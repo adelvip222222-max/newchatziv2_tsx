@@ -242,6 +242,14 @@ export function AiSettingsForm({ tenantId, bots, aiModels, initial }: AiSettings
           </select>
         </div>
         <div>
+          <label className="label" htmlFor="aiModelId">{labels.model}</label>
+          <select className="field" id="aiModelId" name="aiModelId" value={selectedAiModel} onChange={(event) => setSelectedAiModel(event.target.value)}>
+            {aiModels.map((model) => (
+              <option key={model.id} value={model.id}>{model.name} ({model.provider})</option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label className="label" htmlFor="temperature">Temperature</label>
           <input className="field" id="temperature" name="temperature" type="number" min="0" max="2" step="0.1" defaultValue={initial?.temperature ?? 0.4} />
         </div>
