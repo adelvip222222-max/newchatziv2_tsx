@@ -135,7 +135,7 @@ export const authOptions: AuthOptions = {
         if (!email || !password) return null;
         
         try {
-          checkRateLimit(`login:${ipAddress}:${email}`, { limit: 10, windowMs: 15 * 60_000 });
+          await checkRateLimit(`login:${ipAddress}:${email}`, { limit: 10, windowMs: 15 * 60_000 });
         } catch (err) {
           logSystemEvent({ eventType: "rate_limit_exceeded", email, ipAddress, severity: "warning", details: { reason: "Too many login attempts" } });
           throw err;

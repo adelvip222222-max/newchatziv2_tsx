@@ -73,6 +73,7 @@ conversationSchema.index({ tenantId: 1, aiStatus: 1, priority: 1, lastMessageAt:
 conversationSchema.index({ tenantId: 1, provider: 1, status: 1, lastMessageAt: -1 });
 conversationSchema.index({ tenantId: 1, labels: 1, lastMessageAt: -1 });
 conversationSchema.index({ tenantId: 1, tags: 1, lastMessageAt: -1 });
+conversationSchema.index({ tenantId: 1, botId: 1, channel: 1, externalUserId: 1 });
 
 export type ConversationDocument = InferSchemaType<typeof conversationSchema>;
 export const Conversation =

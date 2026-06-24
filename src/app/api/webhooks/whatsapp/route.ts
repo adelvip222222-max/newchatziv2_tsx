@@ -7,7 +7,7 @@ const payloadSchema = z.record(z.unknown());
 
 export async function POST(req: Request) {
   try {
-    checkRateLimit(`wa-webhook:${getClientIp(req)}`, { limit: 120, windowMs: 60_000 });
+    await checkRateLimit(`wa-webhook:${getClientIp(req)}`, { limit: 120, windowMs: 60_000 });
 
     const signature = req.headers.get("x-hub-signature-256");
     const rawBody = await req.text();

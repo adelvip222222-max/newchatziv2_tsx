@@ -29,7 +29,12 @@ export async function connectToDatabase() {
 
   cached.promise ??= mongoose.connect(MONGODB_URI, {
     dbName: "chatzi",
-    bufferCommands: false
+    bufferCommands: false,
+    maxPoolSize: Number(process.env.MONGODB_POOL_MAX || 20),
+    minPoolSize: Number(process.env.MONGODB_POOL_MIN || 2),
+    serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 10000),
+    socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS || 45000),
+    maxIdleTimeMS: Number(process.env.MONGODB_MAX_IDLE_TIME_MS || 60000),
   });
 
   cached.conn = await cached.promise;

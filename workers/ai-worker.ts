@@ -97,7 +97,12 @@ export const aiWorker = new Worker(
     logger.info("ai.reply_generated", { tenantId, conversationId, messageId: result.messageId, traceId, aiLatencyMs: Date.now() - aiStartedAt.getTime() });
     return { generated: true, messageId: result.messageId };
   },
-  { connection: connection as any, concurrency: Number(process.env.AI_WORKER_CONCURRENCY || 3) }
+  {
+    connection: connection as any,
+    concurrency: Number(process.env.AI_WORKER_CONCURRENCY || 3),
+    lockDuration: Number(process.env.AI_JOB_LOCK_DURATION_MS || 90_000),
+    stalledInterval: Number(process.env.AI_JOB_STALL_INTERVAL_MS || 45_000),
+  }
 );
 
 aiWorker.on("failed", (job, error) => {

@@ -153,18 +153,13 @@ export async function generateAiReplyLegacy(input: GenerateReplyInput, options: 
     throw new Error("معرف المستأجر أو البوت غير صالح.");
   }
 
-  const bot = await Bot.findOne({
-    _id: input.botId,
-    tenantId: input.tenantId,
-    isActive: true,
-  });
-  if (!bot) throw new Error("البوت غير موجود أو غير مفعل.");
+  const [bot, setting, tenant] = await Promise.all([
+    Bot.findOne({ _id: input.botId, tenantId: input.tenantId, isActive: true }),
+    AiSetting.findOne({ tenantId: input.tenantId, botId: input.botId }),
+    Tenant.findById(input.tenantId).select("name").lean(),
+  ]);
 
-  const setting = await AiSetting.findOne({
-    tenantId: input.tenantId,
-    botId: input.botId,
-  });
-  const tenant = await Tenant.findById(input.tenantId).select("name").lean();
+  if (!bot) throw new Error("البوت غير موجود أو غير مفعل.");
 
   if (setting && !setting.isEnabled) {
     throw new Error("الذكاء الاصطناعي غير مفعل لهذا البوت.");

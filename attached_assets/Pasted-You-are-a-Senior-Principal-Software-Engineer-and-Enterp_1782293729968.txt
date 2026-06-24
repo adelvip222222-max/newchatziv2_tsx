@@ -1,0 +1,344 @@
+You are a Senior Principal Software Engineer and Enterprise SaaS Architect.
+
+Implement ONLY Phase 1, Phase 2, and Phase 3 from the ChatZi audit roadmap.
+
+Your goal is to make the platform stronger while ALWAYS preserving clean code and the following principles:
+
+1. Performance & Scalability
+2. Security
+3. Availability
+4. Maintainability
+5. Clean Code
+6. Separation of Concerns
+7. Backward Compatibility
+
+Do NOT rewrite the whole project.
+Do NOT change product behavior unless required.
+Do NOT introduce breaking changes.
+Do NOT remove existing features.
+Do NOT create temporary hacks.
+Do NOT mix unrelated changes.
+Do NOT put business logic inside UI components.
+Do NOT put infrastructure logic inside Mastra workflows.
+Do NOT create God files.
+
+Work in small, safe, reviewable changes.
+
+==================================================
+PHASE 1 — CRITICAL PRODUCTION FIXES
+==================================================
+
+Implement these first:
+
+1. Add Socket.io Redis Adapter
+- File: server/socket-server.ts
+- Goal: realtime must work correctly across multiple servers.
+- Use @socket.io/redis-adapter.
+- Keep current Redis PubSub behavior if needed.
+- Ensure no duplicated events.
+- Add safe error handling.
+
+2. Manage Workers Properly
+- Use ecosystem.config.js or production-safe process management.
+- Ensure workers are not started using unsafe npm background "&" scripts.
+- Each worker must run as a managed process.
+- Add clear start commands.
+
+3. Add Worker Concurrency and Timeouts
+- Files: workers/*.ts and queue config files.
+- Add configurable env vars:
+  - INGRESS_WORKER_CONCURRENCY
+  - CORE_ROUTING_WORKER_CONCURRENCY
+  - AI_WORKER_CONCURRENCY
+  - EGRESS_WORKER_CONCURRENCY
+  - KNOWLEDGE_WORKER_CONCURRENCY
+- Add safe job timeout values.
+- Add retry/backoff where missing.
+- Avoid infinite hanging jobs.
+
+4. Replace In-Memory Rate Limiter With Redis
+- File: src/lib/rate-limit.ts
+- Remove Map-based memory limiter.
+- Implement Redis-based rate limiter with TTL.
+- Must work across multiple servers.
+- Must fail safely.
+
+5. Apply Rate Limiting To Webhooks
+- Apply to:
+  - WhatsApp webhook routes
+  - Telegram webhook routes
+  - Facebook webhook routes
+  - Any public webhook endpoint
+- Prevent flood attacks and queue abuse.
+- Keep valid provider webhooks working.
+
+6. Remove ensureInboxDefaults From Hot Path
+- File: src/lib/inbox/service.ts
+- Do not run tenant initialization logic on every inbox request.
+- Move it to tenant creation, user creation, onboarding, or explicit setup endpoint.
+- Preserve existing defaults behavior.
+
+7. Add TTL Indexes
+- Add TTL indexes for:
+  - ConversationEvent
+  - WebhookLog
+  - WebhookEvent
+  - FailedJob if appropriate
+- Use reasonable retention periods through env vars where possible.
+- Do not delete business-critical data.
+
+8. Add MongoDB Pool Settings
+- File: src/lib/mongodb.ts
+- Add:
+  - maxPoolSize
+  - minPoolSize
+  - serverSelectionTimeoutMS
+  - socketTimeoutMS
+  - maxIdleTimeMS
+- Read values from env vars with safe defaults.
+
+==================================================
+PHASE 2 — PERFORMANCE AND SCALING FIXES
+==================================================
+
+After Phase 1 is complete and verified, implement:
+
+1. Redis Cache For Hot AI Reads
+- Cache:
+  - Bot
+  - AiSetting
+  - Tenant basic data
+- Files:
+  - src/lib/ai.ts
+  - related AI service files
+- Use short TTL.
+- Invalidate or expire safely.
+- Do not cache sensitive secrets unless encrypted/safe.
+
+2. Parallelize Sequential Queries
+- File: src/lib/ai.ts
+- Replace independent sequential queries with Promise.all.
+- Keep dependent queries sequential.
+- Preserve error handling.
+
+3. Cache Inbox Analytics
+- File: src/lib/inbox/service.ts
+- Cache getInboxAnalytics results in Redis.
+- Use short TTL, for example 60–120 seconds.
+- Invalidate on major inbox events if easy and safe.
+
+4. Add Missing Indexes
+- Review actual query patterns before adding indexes.
+- Add indexes only where justified.
+- Suggested candidates:
+  - Bot: { _id, tenantId, isActive }
+  - Conversation: { tenantId, botId, channel, externalUserId }
+  - Message: { tenantId, conversationId, direction, createdAt }
+- Avoid over-indexing.
+
+5. Unify Quota System
+- Files:
+  - src/lib/quota.ts
+  - src/lib/billing.ts
+  - src/mastra/workflows/ai-reply.workflow.ts
+- Ensure Legacy AI and Mastra use the same quota reservation path.
+- Prevent double-counting.
+- Prefer Redis quota reservation with MongoDB sync.
+- Make quota operation atomic using Lua/EVAL if needed.
+
+6. Improve Conversation Message Pagination
+- File: src/lib/inbox/service.ts
+- Do not always load 120 messages by default.
+- Implement cursor-based pagination for messages.
+- Load recent messages first.
+- Preserve existing API compatibility where possible.
+
+7. Limit Conversation Events Loading
+- File: src/lib/inbox/service.ts
+- Add limit and pagination for ConversationEvent.
+- Avoid unbounded populate.
+- Use projections.
+
+8. Add Projections and lean()
+- Add .lean() to read-only Mongoose queries.
+- Add select/projection to avoid overfetching.
+- Do not use lean where Mongoose document methods are required.
+
+==================================================
+PHASE 3 — ENTERPRISE READINESS AND MAINTAINABILITY
+==================================================
+
+After Phase 1 and Phase 2 are complete and tests pass, implement:
+
+1. Split Large Inbox Component
+- File:
+  - src/components/inbox/ai-inbox-client.tsx
+- Split into clean components:
+  - ConversationList
+  - ConversationListItem
+  - MessageThread
+  - MessageComposer
+  - ConversationSidebar
+  - AiCopilotPanel
+  - InboxSocketBridge
+- Keep behavior identical.
+- Do not mix API calls everywhere.
+- Move reusable hooks to src/hooks or feature-level hooks.
+
+2. Add Virtual Scrolling
+- Use @tanstack/react-virtual or equivalent.
+- Apply to:
+  - Conversation list
+  - Long message thread if needed
+- Keep UX smooth with large conversation counts.
+
+3. Add Circuit Breakers
+- Files:
+  - src/lib/ai-router.ts
+  - workers/ai-worker.ts
+  - external provider clients
+- Add circuit breaker for:
+  - OpenAI
+  - Anthropic
+  - other AI providers
+  - outbound channel providers where appropriate
+- Add timeout, fallback, and structured logs.
+
+4. Add System Prompt Caching
+- Cache stable parts of system prompts per tenant/bot/settings version.
+- Avoid caching dynamic user message content.
+- Reduce AI token cost.
+- Preserve prompt correctness.
+
+5. Improve Search Architecture
+- Do not remove Mongo search immediately.
+- Add abstraction layer for search provider.
+- Support future Elasticsearch / Typesense / Meilisearch / Atlas Search.
+- Keep MongoDB fallback.
+
+6. Improve Observability
+- Add structured metrics for:
+  - queue backlog
+  - failed jobs
+  - AI latency
+  - webhook rate limit hits
+  - Mongo query latency where possible
+  - realtime connected clients
+- Do not spam logs.
+- Keep logs structured JSON.
+
+7. Add Critical Tests
+Add tests for:
+- Webhook rate limiting
+- Redis rate limiter
+- Quota reservation
+- Billing double-counting prevention
+- Tenant isolation
+- Worker retry/timeout behavior
+- Inbox pagination
+- Socket event publishing behavior
+
+8. Improve Domain Boundaries
+Gradually organize code into domains without breaking imports:
+- ai
+- billing
+- inbox
+- channels
+- knowledge
+- realtime
+- shared
+Do not do a massive rewrite.
+Use incremental refactoring.
+
+==================================================
+MANDATORY QUALITY RULES
+==================================================
+
+Every change must satisfy:
+
+Performance & Scalability:
+- Avoid unnecessary DB queries.
+- Avoid loading large payloads.
+- Use pagination.
+- Use Redis caching only where useful.
+- Use indexes based on real queries.
+- Avoid blocking workers.
+- Support horizontal scaling.
+
+Security:
+- Validate all public inputs.
+- Apply rate limiting to public endpoints.
+- Never expose secrets.
+- Preserve tenant isolation.
+- Avoid unsafe defaults.
+- Avoid trusting headers blindly unless behind trusted proxy.
+- Use safe error messages.
+
+Availability:
+- Add timeouts to external calls.
+- Add retries with backoff.
+- Add circuit breakers where appropriate.
+- Avoid single-process assumptions.
+- Workers must recover after crashes.
+- Realtime must work across multiple servers.
+
+Maintainability:
+- Keep files small.
+- Keep functions focused.
+- Use clear names.
+- Avoid duplication.
+- Avoid God services/components.
+- Keep business logic out of UI.
+- Keep infrastructure logic out of Mastra workflows.
+- Add comments only where they explain why, not obvious what.
+
+Clean Code:
+- TypeScript must remain strict.
+- No any unless unavoidable and explained.
+- No dead code.
+- No temporary hacks.
+- No unrelated formatting noise.
+- No broad rewrites.
+- Keep commits small and logical.
+
+==================================================
+IMPLEMENTATION PROCESS
+==================================================
+
+Work phase by phase.
+
+For each phase:
+1. Inspect the current code first.
+2. Create a short implementation plan.
+3. Implement small isolated changes.
+4. Run typecheck, lint, tests, and build if available.
+5. Fix any errors introduced.
+6. Produce a report.
+
+Do not move to the next phase unless the previous phase is stable.
+
+==================================================
+FINAL REPORT REQUIRED
+==================================================
+
+At the end, provide:
+
+1. Files changed
+2. What was changed
+3. Why it was changed
+4. Which principle it improves:
+   - Performance & Scalability
+   - Security
+   - Availability
+   - Maintainability
+5. How to verify manually
+6. Commands run
+7. Tests added or updated
+8. Remaining risks
+9. Recommended next steps
+
+Important:
+If any item cannot be safely implemented from the current code, do not guess.
+Write:
+"Cannot safely implement without more context"
+and explain exactly why.

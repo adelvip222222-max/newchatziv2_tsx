@@ -40,6 +40,7 @@ messageSchema.index({ tenantId: 1, conversationId: 1, createdAt: 1 });
 messageSchema.index({ tenantId: 1, conversationId: 1, createdAt: -1 });
 messageSchema.index({ tenantId: 1, createdAt: -1 });
 messageSchema.index({ tenantId: 1, content: "text" });
+messageSchema.index({ tenantId: 1, conversationId: 1, direction: 1, createdAt: -1 });
 
 export type MessageDocument = InferSchemaType<typeof messageSchema>;
 export const Message = (models.Message as Model<MessageDocument>) || model("Message", messageSchema);

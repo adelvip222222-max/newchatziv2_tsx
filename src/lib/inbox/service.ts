@@ -12,6 +12,7 @@ import {
   User
 } from "@/lib/models";
 import { connectToDatabase } from "@/lib/mongodb";
+import { redis } from "@/lib/redis";
 import { queueOutboundMessage } from "@/server/channels/outboundQueue";
 import { refreshConversationIntelligence } from "@/lib/inbox/ai-copilot";
 import { publishRealtimeEvent } from "@/lib/realtime";
@@ -99,7 +100,6 @@ export async function getInboxConversations(input: {
   filters: InboxFilters;
 }) {
   await connectToDatabase();
-  await ensureInboxDefaults(input.tenantId, input.userId);
 
   const limit = Math.min(Math.max(Number(input.filters.limit || 40), 10), 80);
   const query = await buildConversationQuery(input.tenantId, input.userId, input.filters);
@@ -155,7 +155,7 @@ export async function getConversationDetail(input: {
   const [messagesDesc, notes, events, agents, teams, savedReplies, activeChannel] = await Promise.all([
     Message.find({ tenantId: input.tenantId, conversationId: conversation._id })
       .sort({ createdAt: -1 })
-      .limit(120)
+      .limit(Number(process.env.INBOX_MESSAGE_PAGE_SIZE || 60))
       .lean(),
     ConversationNote.find({ tenantId: input.tenantId, conversationId: conversation._id })
       .sort({ createdAt: 1 })
@@ -163,6 +163,8 @@ export async function getConversationDetail(input: {
       .lean(),
     ConversationEvent.find({ tenantId: input.tenantId, conversationId: conversation._id })
       .sort({ createdAt: 1 })
+      .limit(Number(process.env.CONVERSATION_EVENTS_PAGE_SIZE || 200))
+      .select("type actorType actorId title content createdAt metadata")
       .populate("actorId", "name email")
       .lean(),
     User.find({ tenantId: input.tenantId, isActive: true, role: { $in: ["owner", "admin", "manager", "agent"] } })
@@ -715,7 +717,30 @@ async function searchNotes(tenantId: string, search: string, regex: RegExp) {
   return ConversationNote.find({ tenantId, content: regex }).select("conversationId").limit(200).lean();
 }
 
+const ANALYTICS_CACHE_TTL_SECONDS = Number(process.env.INBOX_ANALYTICS_CACHE_TTL_SECONDS || 90);
+
 async function getInboxAnalytics(tenantId: string) {
+  const cacheKey = `cache:inbox:analytics:${tenantId}`;
+
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached) as ReturnType<typeof computeInboxAnalytics>;
+  } catch {
+    // Cache miss or Redis error — fall through to DB query
+  }
+
+  const result = await computeInboxAnalytics(tenantId);
+
+  try {
+    await redis.set(cacheKey, JSON.stringify(result), "EX", ANALYTICS_CACHE_TTL_SECONDS);
+  } catch {
+    // Ignore cache write errors — non-critical
+  }
+
+  return result;
+}
+
+async function computeInboxAnalytics(tenantId: string) {
   const tenantObjectId = Types.ObjectId.isValid(tenantId) ? new Types.ObjectId(tenantId) : tenantId;
   const [openCount, resolvedCount, aiEscalations, responseAgg, aiResolved] = await Promise.all([
     Conversation.countDocuments({ tenantId, status: { $in: ["open", "pending", "snoozed"] } }),
