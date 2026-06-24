@@ -1,13 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enqueueInboundWebhook } from "@/server/channels/webhookIngress";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
+
+const WEBHOOK_RATE_LIMIT = Number(process.env.WEBHOOK_RATE_LIMIT || 600);
+const WEBHOOK_RATE_WINDOW_MS = Number(process.env.WEBHOOK_RATE_WINDOW_MS || 60_000);
+
+function getWebhookIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) return forwardedFor.split(",")[0]?.trim() || "unknown";
+  return "unknown";
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getWebhookIp(request);
+
+    try {
+      await checkRateLimit(`webhook:telegram:${ip}`, {
+        limit: WEBHOOK_RATE_LIMIT,
+        windowMs: WEBHOOK_RATE_WINDOW_MS,
+      });
+    } catch {
+      logger.warn("webhook.rate_limit_exceeded", { provider: "telegram", ip });
+      // Return 200 to Telegram to prevent infinite retries on our side
+      return NextResponse.json({ ok: true });
+    }
+
     const payload = await request.json();
-    
-    // Telegram webhooks don't send the channelId in the URL by default unless configured.
-    // They do send X-Telegram-Bot-Api-Secret-Token which our adapter verifies and we can use to find the channel.
-    // We pass the request to the central pipeline.
 
     const result = await enqueueInboundWebhook({
       provider: "telegram",
@@ -16,14 +36,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (!result.ok) {
-      console.error("Telegram webhook error:", result.error);
+      logger.warn("telegram.webhook_enqueue_error", { error: result.error });
       return NextResponse.json({ error: result.error }, { status: result.status || 400 });
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Telegram webhook internal error:", error);
-    // Always return 200 to telegram to prevent retries if it's our internal error that can't be fixed by retrying
+    logger.error("telegram.webhook_internal_error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    // Return 200 to Telegram to prevent retries for non-recoverable errors
     return NextResponse.json({ ok: true, error: "Internal error handled" });
   }
 }

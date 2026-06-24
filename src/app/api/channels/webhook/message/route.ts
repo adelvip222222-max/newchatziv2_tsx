@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   let payload: unknown = null;
 
   try {
-    checkRateLimit(`custom-webhook:${getClientIp(request)}`, { limit: 120, windowMs: 60_000 });
+    await checkRateLimit(`custom-webhook:${getClientIp(request)}`, { limit: 120, windowMs: 60_000 });
 
     const rawBody = await request.text();
     if (Buffer.byteLength(rawBody, "utf8") > 64 * 1024) {

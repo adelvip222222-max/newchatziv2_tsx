@@ -21,6 +21,10 @@ const webhookEventSchema = new Schema(
 webhookEventSchema.index({ tenantId: 1, provider: 1, externalEventId: 1 }, { unique: true });
 webhookEventSchema.index({ tenantId: 1, channelId: 1, receivedAt: -1 });
 webhookEventSchema.index({ provider: 1, payloadHash: 1 });
+webhookEventSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: Number(process.env.WEBHOOK_EVENT_TTL_DAYS || 60) * 86400 }
+);
 
 export type WebhookEventDocument = InferSchemaType<typeof webhookEventSchema>;
 export const WebhookEvent = (models.WebhookEvent as Model<WebhookEventDocument>) || model("WebhookEvent", webhookEventSchema);

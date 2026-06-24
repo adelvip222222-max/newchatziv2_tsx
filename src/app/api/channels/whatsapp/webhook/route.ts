@@ -3,6 +3,17 @@ import { Channel } from "@/lib/models";
 import { connectToDatabase } from "@/lib/mongodb";
 import { safeJsonError } from "@/lib/api-security";
 import { enqueueInboundWebhook } from "@/server/channels/webhookIngress";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
+
+const WEBHOOK_RATE_LIMIT = Number(process.env.WEBHOOK_RATE_LIMIT || 600);
+const WEBHOOK_RATE_WINDOW_MS = Number(process.env.WEBHOOK_RATE_WINDOW_MS || 60_000);
+
+function getWebhookIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) return forwardedFor.split(",")[0]?.trim() || "unknown";
+  return "unknown";
+}
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -30,6 +41,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getWebhookIp(request);
+
+    try {
+      await checkRateLimit(`webhook:whatsapp:${ip}`, {
+        limit: WEBHOOK_RATE_LIMIT,
+        windowMs: WEBHOOK_RATE_WINDOW_MS,
+      });
+    } catch {
+      logger.warn("webhook.rate_limit_exceeded", { provider: "whatsapp", ip });
+      return new NextResponse("Too Many Requests", { status: 429 });
+    }
+
     const rawBody = await request.text();
     let payload: unknown;
     try {

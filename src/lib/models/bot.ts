@@ -24,5 +24,7 @@ const botSchema = new Schema(
   { timestamps: true }
 );
 
+botSchema.index({ _id: 1, tenantId: 1, isActive: 1 });
+
 export type BotDocument = InferSchemaType<typeof botSchema>;
 export const Bot = (models.Bot as Model<BotDocument>) || model("Bot", botSchema);

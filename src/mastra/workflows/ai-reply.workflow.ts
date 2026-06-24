@@ -13,7 +13,7 @@ import { buildUnifiedSystemPrompt } from "@/lib/ai/build-system-prompt";
 import { buildSafeCustomerReply } from "@/lib/ai/safe-customer-reply";
 import { detectBusinessIntent, isDirectKnowledgeIntent } from "@/lib/ai/business-intent";
 import { buildEntitiesPrompt, searchKnowledgeEntities } from "@/lib/knowledge-entities";
-import { assertCanSendAiMessage, recordAiMessageUsage } from "@/lib/billing";
+import { assertAndReserveQuota } from "@/lib/quota";
 import { buildKnowledgePrompt, searchKnowledge } from "@/lib/knowledge";
 import { checkContentModeration } from "@/lib/moderation";
 import { getMastraMaxToolCalls } from "@/lib/ai/orchestrator-flags";
@@ -534,7 +534,7 @@ const quotaStep = createStep({
       throw new Error("الذكاء الاصطناعي غير مفعل لهذا البوت.");
     }
 
-    await assertCanSendAiMessage(inputData.tenantId);
+    await assertAndReserveQuota(inputData.tenantId);
     return inputData;
   },
 });
@@ -962,9 +962,7 @@ const persistResultStep = createStep({
       },
     });
 
-    if (inputData.modelCalled) {
-      await recordAiMessageUsage(inputData.tenantId);
-    }
+    // Quota was already reserved atomically via assertAndReserveQuota in the quota check step.
 
     return {
       generated: action === "reply" || action === "fallback" || action === "handoff",

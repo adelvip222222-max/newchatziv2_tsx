@@ -14,7 +14,7 @@ const bookingSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    checkRateLimit(`book:${getClientIp(req)}`, { limit: 8, windowMs: 60_000 });
+    await checkRateLimit(`book:${getClientIp(req)}`, { limit: 8, windowMs: 60_000 });
     const body = await parseJsonBody(req, bookingSchema, { maxBytes: 8 * 1024 });
     const tenantId =
       process.env.BOOKING_TENANT_ID ||

@@ -33,7 +33,7 @@ function getRegistrationError(error: unknown) {
 
 export async function POST(request: Request) {
   try {
-    checkRateLimit(`register:${getClientIp(request)}`, { limit: 5, windowMs: 60 * 60_000 });
+    await checkRateLimit(`register:${getClientIp(request)}`, { limit: 5, windowMs: 60 * 60_000 });
     const body = await parseJsonBody(request, registerSchema, { maxBytes: 16 * 1024 });
     await connectToDatabase();
 

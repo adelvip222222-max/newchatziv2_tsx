@@ -1,0 +1,491 @@
+Enterprise Scale Readiness Audit
+
+Act as:
+
+* Principal Staff Software Architect
+* Distributed Systems Engineer
+* MongoDB Architect
+* Redis Architect
+* SRE (Site Reliability Engineer)
+* Performance Engineer
+* SaaS Infrastructure Consultant
+
+You are NOT performing a normal code review.
+
+You are performing an ENTERPRISE SCALE READINESS AUDIT.
+
+Your goal is to determine whether this platform can realistically scale to become comparable to:
+
+* Chatwoot
+* Intercom
+* Zendesk
+* Freshdesk
+* Crisp
+* HubSpot Service Hub
+
+IMPORTANT:
+
+Do NOT provide generic advice.
+
+Everything must be based on actual source code.
+
+For every finding:
+
+* show file names
+* show functions
+* show queries
+* show workers
+* show services
+* show evidence
+
+If something cannot be verified from code:
+
+Write:
+
+“Cannot verify from source code.”
+
+Never guess.
+
+⸻
+
+SECTION 1
+
+SCALE READINESS SCORE
+
+Give scores:
+
+* Current Scale Readiness (/10)
+* Production Scale Readiness (/10)
+* Enterprise Scale Readiness (/10)
+
+Can this system safely support:
+
+* 100 tenants
+* 1,000 tenants
+* 10,000 tenants
+* 100,000 tenants
+
+Can this system safely support:
+
+* 1 million messages/month
+* 10 million messages/month
+* 100 million messages/month
+
+Explain why.
+
+⸻
+
+SECTION 2
+
+MONGODB GROWTH ANALYSIS
+
+Inspect:
+
+* all models
+* all indexes
+* all collections
+* all queries
+
+For every major collection:
+
+Estimate growth:
+
+* after 1 million rows
+* after 10 million rows
+* after 100 million rows
+
+Identify:
+
+* collection scans
+* missing indexes
+* expensive sorts
+* aggregation bottlenecks
+* write amplification
+
+Answer:
+
+Which collection will become the first bottleneck?
+
+Which collection will become the second bottleneck?
+
+Which collection can grow safely?
+
+Check:
+
+* compound indexes
+* index selectivity
+* hot partitions
+* document growth risk
+
+Determine:
+
+Would sharding eventually be required?
+
+If yes:
+
+Which collections?
+
+Why?
+
+⸻
+
+SECTION 3
+
+REDIS SCALE ANALYSIS
+
+Inspect all Redis usage.
+
+Identify:
+
+* cache keys
+* quota keys
+* websocket keys
+* queue keys
+
+Calculate:
+
+* estimated key growth
+* memory growth
+* TTL strategy
+
+Determine:
+
+What happens if Redis contains:
+
+* 100k keys
+* 1M keys
+* 10M keys
+
+Find:
+
+* keys without TTL
+* memory leak risks
+* duplicate caches
+* unnecessary cache writes
+
+Answer:
+
+Could Redis become the bottleneck?
+
+⸻
+
+SECTION 4
+
+BULLMQ / QUEUE THROUGHPUT ANALYSIS
+
+Map every queue.
+
+Map every worker.
+
+For each worker:
+
+* concurrency
+* retries
+* backoff
+* timeout
+* idempotency
+
+Trace:
+
+Inbound Message
+→ Queue
+→ AI
+→ Realtime
+→ Outbound
+
+Determine:
+
+Maximum realistic throughput.
+
+Identify:
+
+* slowest worker
+* highest latency worker
+* worker most likely to crash
+
+Answer:
+
+What happens at:
+
+* 100 jobs/min
+* 1,000 jobs/min
+* 10,000 jobs/min
+* 100,000 jobs/min
+
+Would Kafka eventually be needed?
+
+Why?
+
+⸻
+
+SECTION 5
+
+REALTIME & WEBSOCKET SCALE ANALYSIS
+
+Inspect:
+
+* socket.io
+* websocket code
+* pubsub
+* realtime services
+
+Determine:
+
+Can realtime work correctly with:
+
+* 1 server
+* 2 servers
+* 5 servers
+* 20 servers
+
+Check:
+
+* Redis adapter
+* sticky sessions
+* pub/sub strategy
+* event fanout
+
+Answer:
+
+What breaks first when traffic increases?
+
+How many concurrent socket connections can current architecture support?
+
+⸻
+
+SECTION 6
+
+INBOX PERFORMANCE ANALYSIS
+
+Inspect:
+
+* inbox list loading
+* conversation loading
+* message loading
+
+Determine:
+
+Does system use:
+
+* lazy loading
+* virtual scrolling
+* infinite scrolling
+* cursor pagination
+
+Calculate:
+
+How many DB queries happen when:
+
+User opens inbox
+
+User opens conversation
+
+User switches conversation
+
+User searches
+
+Compare with Chatwoot.
+
+Identify:
+
+Overfetching.
+
+Repeated queries.
+
+Large payloads.
+
+Unnecessary populate calls.
+
+⸻
+
+SECTION 7
+
+FRONTEND SCALE ANALYSIS
+
+Inspect:
+
+* Next.js architecture
+* React components
+* bundle sizes
+* client components
+
+Find:
+
+* largest components
+* largest bundles
+* hydration risks
+* rerender risks
+
+Determine:
+
+Would frontend remain responsive with:
+
+* 1k conversations
+* 10k conversations
+* 50k conversations
+
+Check:
+
+* virtualization
+* memoization
+* code splitting
+* dynamic imports
+
+Provide exact files causing problems.
+
+⸻
+
+SECTION 8
+
+AI COST & SCALE ANALYSIS
+
+Inspect:
+
+* prompts
+* workflows
+* token generation
+* memory
+* transcript building
+
+Calculate:
+
+Approximate token growth.
+
+Find:
+
+* duplicated context
+* unnecessary prompt expansion
+* repeated LLM calls
+
+Determine:
+
+Cost per:
+
+* 1k conversations
+* 10k conversations
+* 100k conversations
+
+Identify:
+
+Biggest AI cost leak.
+
+Biggest latency source.
+
+⸻
+
+SECTION 9
+
+BILLING ACCURACY AUDIT
+
+Inspect:
+
+* quotas
+* subscriptions
+* usage tracking
+* Stripe integration
+
+Check:
+
+* double counting risks
+* race conditions
+* failed payment handling
+* upgrade handling
+* downgrade handling
+* cancellation handling
+* trial handling
+
+Answer:
+
+Can billing survive:
+
+1 million usage events/day?
+
+Show evidence.
+
+⸻
+
+SECTION 10
+
+DISASTER RECOVERY ANALYSIS
+
+Simulate failures:
+
+OpenAI down
+Anthropic down
+Redis down
+MongoDB down
+Socket server down
+Stripe down
+WhatsApp provider down
+
+For each:
+
+Describe actual behavior from code.
+
+Identify:
+
+* graceful degradation
+* fallback mechanisms
+* data loss risks
+* message loss risks
+
+⸻
+
+SECTION 11
+
+CHATWOOT GAP ANALYSIS
+
+Compare current implementation with Chatwoot.
+
+Category by category:
+
+* Database
+* Realtime
+* Inbox
+* Search
+* Workers
+* Billing
+* AI
+* Performance
+* Reliability
+
+Table:
+
+Current
+Chatwoot
+Gap
+Impact
+Difficulty
+
+⸻
+
+SECTION 12
+
+ROADMAP TO ENTERPRISE SCALE
+
+Create roadmap:
+
+PHASE 1
+Critical fixes (1-2 weeks)
+
+PHASE 2
+Scaling fixes (1 month)
+
+PHASE 3
+Enterprise readiness (3 months)
+
+PHASE 4
+100M messages architecture
+
+For each item:
+
+* exact files
+* exact services
+* exact benefit
+* estimated impact
+
+Prioritize by ROI.
+
+Highest impact first.
+
+Lowest effort first.

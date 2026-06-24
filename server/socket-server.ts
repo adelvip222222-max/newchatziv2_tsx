@@ -1,6 +1,7 @@
 import http from "http";
 import { getToken } from "next-auth/jwt";
 import { Server, type Socket } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
 import { connectToDatabase } from "@/lib/mongodb";
 import { logger } from "@/lib/logger";
 import { User } from "@/lib/models";
@@ -61,6 +62,21 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 });
+
+// Redis adapter: enables io.to(room).emit() to work across multiple socket-server processes.
+// When running instances > 1, set SOCKET_BRIDGE_ENABLED=false on all but one instance
+// to prevent duplicated events from the Redis PubSub bridge.
+const adapterPub = createRedisConnection("socket-io-adapter-pub");
+const adapterSub = createRedisConnection("socket-io-adapter-sub");
+io.adapter(createAdapter(adapterPub, adapterSub));
+adapterPub.on("error", (error) => {
+  logger.warn("socket.adapter_pub_error", { error: error instanceof Error ? error.message : "unknown" });
+});
+adapterSub.on("error", (error) => {
+  logger.warn("socket.adapter_sub_error", { error: error instanceof Error ? error.message : "unknown" });
+});
+
+const BRIDGE_ENABLED = process.env.SOCKET_BRIDGE_ENABLED !== "false";
 
 function tenantRoom(tenantId: string) {
   return `tenant:${tenantId}`;
@@ -186,6 +202,11 @@ io.on("connection", (socket) => {
 });
 
 async function startRedisBridge() {
+  if (!BRIDGE_ENABLED) {
+    logger.info("socket.redis_bridge_disabled", { reason: "SOCKET_BRIDGE_ENABLED=false" });
+    return;
+  }
+
   const subscriber = createRedisConnection("chatzi-socketio-sub", { failFast: false });
 
   subscriber.on("pmessage", (_pattern: string, channel: string, rawMessage: string) => {
@@ -226,6 +247,8 @@ async function startRedisBridge() {
       // ignore
     }
     subscriber.disconnect();
+    adapterPub.disconnect();
+    adapterSub.disconnect();
     io.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 5000);
   };

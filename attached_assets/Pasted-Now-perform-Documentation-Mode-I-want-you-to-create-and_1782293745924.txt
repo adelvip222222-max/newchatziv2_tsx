@@ -1,0 +1,175 @@
+Now perform Documentation Mode.
+
+I want you to create and maintain a complete engineering change log inside the repository.
+
+Requirements:
+
+1. Create a new folder:
+
+docs/changes/
+
+2. Create a daily markdown file using this naming convention:
+
+DD-MM-YYYY.md
+
+Example:
+
+24-06-2026.md
+
+3. If today’s file already exists:
+
+* Do NOT overwrite it.
+* Append new changes to the existing file.
+* Keep chronological order.
+
+4. Every time you make any code change, refactor, optimization, fix, feature, security improvement, performance enhancement, infrastructure change, database change, UI change, AI change, billing change, worker change, queue change, or configuration change:
+
+* Update today’s documentation file immediately.
+
+5. The daily file must contain the following sections:
+
+Date
+
+Summary
+
+Brief executive summary of everything completed today.
+
+Architecture Changes
+
+Explain architectural improvements.
+
+Backend Changes
+
+Files modified.
+Reason for change.
+Impact.
+
+Frontend Changes
+
+Files modified.
+Reason for change.
+Impact.
+
+Database Changes
+
+Collections.
+Indexes.
+Migrations.
+Query optimizations.
+
+Performance & Scalability Improvements
+
+Exactly what was improved.
+Expected impact.
+
+Security Improvements
+
+Threat addressed.
+Implementation details.
+
+Availability & Reliability Improvements
+
+Retries.
+Timeouts.
+Circuit breakers.
+Queue changes.
+Worker changes.
+
+AI & Mastra Changes
+
+Prompts.
+Workflows.
+Tools.
+Optimization details.
+
+Billing & Subscription Changes
+
+Usage tracking.
+Quota.
+Stripe.
+Plans.
+
+Realtime Changes
+
+Socket.io.
+Redis.
+PubSub.
+Scaling.
+
+Testing
+
+Tests added.
+Tests updated.
+Coverage impact.
+
+Files Modified
+
+Full file list.
+
+Verification Steps
+
+How to manually verify the change.
+
+Risks / Notes
+
+Anything that still requires attention.
+
+Next Recommended Steps
+
+Suggested future improvements.
+
+6. The documentation must be written professionally in English.
+7. Do NOT write generic summaries.
+
+Every entry must reference actual files, actual code changes, and actual implementation details.
+
+8. If multiple changes are made during the same day:
+
+* Append them under new timestamped sections.
+* Keep a complete history.
+
+Example:
+
+10:30 AM
+
+Worker concurrency improvements
+
+02:15 PM
+
+Redis adapter implementation
+
+05:40 PM
+
+Inbox performance optimization
+
+9. Documentation is mandatory.
+
+No code change is considered complete until the corresponding documentation entry is added.
+
+10. Also maintain:
+
+docs/changes/CHANGELOG.md
+
+This file must contain:
+
+* Chronological list of all daily files.
+* Short summary of each day.
+* Links/references to the detailed daily documents.
+
+11. Maintain clean documentation standards:
+
+* Clear headings.
+* Bullet points.
+* Technical explanations.
+* No duplicated information.
+* No vague descriptions.
+
+12. Before finishing your task:
+
+* Verify that today’s documentation file was updated.
+* Verify that CHANGELOG.md was updated.
+* Include the documentation files in your final report.
+
+Important:
+Documentation is part of the Definition of Done (DoD).
+A task is not finished until code, tests, and documentation are all updated.

@@ -1,5 +1,8 @@
 import { Schema, models, model, type InferSchemaType, type Model } from "mongoose";
 
+const WEBHOOK_LOG_TTL_SECONDS =
+  Number(process.env.WEBHOOK_LOG_TTL_DAYS || 30) * 86400;
+
 const webhookLogSchema = new Schema(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: "Tenant", required: false, index: true },
@@ -11,6 +14,8 @@ const webhookLogSchema = new Schema(
   },
   { timestamps: true }
 );
+
+webhookLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: WEBHOOK_LOG_TTL_SECONDS });
 
 export type WebhookLogDocument = InferSchemaType<typeof webhookLogSchema>;
 export const WebhookLog =

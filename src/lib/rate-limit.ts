@@ -1,16 +1,38 @@
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+import { redis } from "@/lib/redis";
+import { logger } from "@/lib/logger";
 
-export function checkRateLimit(key: string, options: { limit: number; windowMs: number }) {
-  const now = Date.now();
-  const current = rateLimitStore.get(key);
+const RATE_LIMIT_PREFIX = "ratelimit";
 
-  if (!current || current.resetAt <= now) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + options.windowMs });
-    return;
-  }
+/**
+ * Redis-based distributed rate limiter.
+ *
+ * Uses INCR + PEXPIRE to count requests per key within a fixed window.
+ * Fails open on Redis errors to preserve availability (logs a warning).
+ * Works correctly across multiple server processes and restarts.
+ */
+export async function checkRateLimit(
+  key: string,
+  options: { limit: number; windowMs: number }
+): Promise<void> {
+  const redisKey = `${RATE_LIMIT_PREFIX}:${key}`;
 
-  current.count += 1;
-  if (current.count > options.limit) {
-    throw new Error("Too many requests. Please try again later.");
+  try {
+    const count = await redis.incr(redisKey);
+
+    if (count === 1) {
+      await redis.pexpire(redisKey, options.windowMs);
+    }
+
+    if (count > options.limit) {
+      throw new Error("Too many requests. Please try again later.");
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message === "Too many requests. Please try again later.") {
+      throw error;
+    }
+    logger.warn("rate_limit.redis_error", {
+      key,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }

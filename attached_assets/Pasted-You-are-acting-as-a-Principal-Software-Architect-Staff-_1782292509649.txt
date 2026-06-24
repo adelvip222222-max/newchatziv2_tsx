@@ -1,0 +1,577 @@
+You are acting as a Principal Software Architect, Staff Backend Engineer, Staff Frontend Engineer, Staff DevOps Engineer, Database Architect, Security Architect, and Performance Engineer.
+
+Your task is NOT to review documentation.
+
+Your task is to inspect the ACTUAL SOURCE CODE ONLY.
+
+You must read the entire repository and produce a deep architectural audit based solely on the implementation.
+
+Do not make assumptions.
+
+If something cannot be verified from code, explicitly write:
+
+“CANNOT VERIFY FROM SOURCE CODE”
+
+⸻
+
+AUDIT SCOPE
+
+Review every part of the system:
+
+1. Architecture
+2. Backend
+3. Frontend
+4. Database
+5. Redis
+6. Queues
+7. Workers
+8. Realtime/WebSocket
+9. AI Pipeline
+10. Mastra Integration
+11. Billing & Subscription
+12. Multi-Tenancy
+13. Security
+14. Availability
+15. Reliability
+16. DevOps
+17. Observability
+18. Testing
+19. Scaling
+20. Cost Efficiency
+
+For every finding provide:
+
+* Severity
+* Impact
+* Evidence
+* File
+* Line Numbers
+* Root Cause
+* Recommended Fix
+
+⸻
+
+SECTION 1
+ARCHITECTURE REVIEW
+
+Analyze:
+
+* Monolith vs Modular Monolith vs Microservices
+* Domain boundaries
+* Coupling
+* Cohesion
+* Dependency graph
+* Circular dependencies
+* Service boundaries
+* Infrastructure leakage
+* Business logic placement
+* Layering violations
+
+Identify:
+
+* God Services
+* God Components
+* Fat Controllers
+* Fat Workflows
+* Fat Models
+
+Generate dependency diagrams.
+
+⸻
+
+SECTION 2
+DATABASE REVIEW
+
+Analyze every collection/table.
+
+For each:
+
+* Estimated growth
+* Read patterns
+* Write patterns
+* Query patterns
+* Index quality
+* Missing indexes
+* Duplicate indexes
+* Expensive indexes
+* Compound indexes
+* Cardinality issues
+
+Find:
+
+* Full collection scans
+* Unbounded queries
+* Missing pagination
+* Missing projections
+* Missing lean()
+* N+1 queries
+* Over-population
+
+Estimate behavior at:
+
+1M rows
+10M rows
+100M rows
+1B rows
+
+Determine:
+
+* When sharding becomes required
+* Suggested shard keys
+* Archiving strategy
+* TTL opportunities
+
+⸻
+
+SECTION 3
+QUERY ANALYSIS
+
+Inspect all queries.
+
+For each critical query:
+
+* Collection
+* Frequency
+* Current complexity
+* Estimated latency
+
+Identify:
+
+* Sequential queries
+* Queries that should run in Promise.all
+* Repeated queries
+* Duplicate lookups
+* Missing caching
+
+Rank top 50 slowest paths.
+
+⸻
+
+SECTION 4
+REDIS REVIEW
+
+Find all Redis usage.
+
+List:
+
+* Keys
+* TTLs
+* Data structures
+* Growth patterns
+
+Identify:
+
+* Memory leak risks
+* Missing expiration
+* Missing cache opportunities
+* Single point of failure risks
+
+Estimate Redis memory usage at:
+
+100 tenants
+1k tenants
+10k tenants
+100k tenants
+
+⸻
+
+SECTION 5
+QUEUE SYSTEM REVIEW
+
+Review BullMQ completely.
+
+For every queue:
+
+* Producer
+* Consumer
+* Retry strategy
+* Concurrency
+* Throughput
+* Backpressure handling
+
+Calculate:
+
+Maximum jobs/minute
+
+Find:
+
+* Blocking workers
+* Missing concurrency
+* Missing timeout
+* Missing DLQ
+* Missing monitoring
+
+Determine:
+
+At what traffic level queues fail.
+
+⸻
+
+SECTION 6
+REALTIME SYSTEM REVIEW
+
+Review:
+
+Socket.io
+Redis PubSub
+Realtime events
+
+Determine:
+
+* Multi-server compatibility
+* Horizontal scaling readiness
+* Sticky session requirements
+* Event loss scenarios
+
+Simulate:
+
+1 server
+2 servers
+5 servers
+20 servers
+
+Find:
+
+* Missing Redis adapter
+* Missing clustering
+* Memory growth risks
+
+Calculate:
+
+Maximum websocket connections.
+
+⸻
+
+SECTION 7
+INBOX PERFORMANCE REVIEW
+
+Trace:
+
+Open inbox
+Open conversation
+Search
+Assign agent
+Send message
+Receive message
+
+For every action:
+
+Count:
+
+* DB queries
+* Redis calls
+* Queue operations
+* Realtime events
+
+Compare with:
+
+Chatwoot
+Zendesk
+Intercom
+
+Identify performance gaps.
+
+⸻
+
+SECTION 8
+AI SYSTEM REVIEW
+
+Analyze:
+
+AI orchestration
+Mastra
+Legacy AI path
+Fallback mechanisms
+Prompt generation
+Memory management
+Knowledge retrieval
+
+Measure:
+
+* Query count
+* LLM calls
+* Token consumption
+* Cost per conversation
+* Cost per tenant
+
+Find:
+
+* Duplicate LLM calls
+* Prompt inflation
+* Context waste
+* Missing caching
+
+Calculate costs at:
+
+1k
+10k
+100k
+1M conversations
+
+⸻
+
+SECTION 9
+BILLING REVIEW
+
+Inspect:
+
+Subscriptions
+Plans
+Usage tracking
+Quota enforcement
+Stripe integration
+
+Verify:
+
+* Idempotency
+* Race conditions
+* Double counting
+* Missing transactions
+* Revenue leakage risks
+
+Simulate:
+
+Concurrent usage
+Duplicate webhook delivery
+Subscription renewal
+Plan upgrade
+Plan downgrade
+
+⸻
+
+SECTION 10
+SECURITY REVIEW
+
+Perform OWASP Top 10 review.
+
+Inspect:
+
+Authentication
+Authorization
+Tenant isolation
+Secrets
+Webhook verification
+Input validation
+Rate limiting
+CSRF
+SSRF
+XSS
+RCE risks
+
+For every issue:
+
+Provide exploit scenario.
+
+⸻
+
+SECTION 11
+MULTI-TENANCY REVIEW
+
+Verify:
+
+Every model
+Every query
+Every API
+
+Determine:
+
+Whether tenant isolation exists at:
+
+Application layer
+Database layer
+Infrastructure layer
+
+Identify possible tenant data leaks.
+
+⸻
+
+SECTION 12
+FRONTEND REVIEW
+
+Analyze:
+
+Bundle size
+Client Components
+Server Components
+Hydration cost
+Rerender frequency
+Virtualization
+Lazy loading
+Code splitting
+
+Identify:
+
+Largest bundles
+Largest components
+State management issues
+
+Estimate:
+
+Performance with:
+
+1k conversations
+10k conversations
+50k conversations
+
+⸻
+
+SECTION 13
+AVAILABILITY REVIEW
+
+Simulate failure of:
+
+MongoDB
+Redis
+Socket server
+Stripe
+OpenAI
+WhatsApp provider
+
+Determine:
+
+What breaks
+What survives
+What retries
+What recovers automatically
+
+Identify:
+
+Single points of failure.
+
+⸻
+
+SECTION 14
+OBSERVABILITY REVIEW
+
+Review:
+
+Logs
+Metrics
+Tracing
+Health checks
+
+Determine:
+
+Can operators detect:
+
+Queue backlog
+Failed messages
+Slow queries
+Provider outages
+
+Find monitoring gaps.
+
+⸻
+
+SECTION 15
+TESTING REVIEW
+
+Calculate:
+
+Unit coverage
+Integration coverage
+E2E coverage
+
+Identify:
+
+Critical flows without tests.
+
+⸻
+
+SECTION 16
+ENTERPRISE READINESS
+
+Can the system support:
+
+100 tenants
+1,000 tenants
+10,000 tenants
+100,000 tenants
+
+Can it support:
+
+1M messages/month
+10M messages/month
+100M messages/month
+
+Can it support:
+
+Multi-region deployment
+
+Can it support:
+
+Active-active deployment
+
+Provide evidence.
+
+⸻
+
+SECTION 17
+COMPARISON
+
+Compare against:
+
+Chatwoot
+Intercom
+Zendesk
+Freshdesk
+
+For every category:
+
+State:
+
+* Better
+* Equal
+* Worse
+
+Explain why.
+
+⸻
+
+SECTION 18
+ROADMAP
+
+Generate:
+
+PHASE 1
+Critical fixes (1-2 weeks)
+
+PHASE 2
+Scaling fixes (1 month)
+
+PHASE 3
+Enterprise readiness (3 months)
+
+PHASE 4
+100M+ messages architecture
+
+For every task provide:
+
+* Estimated effort
+* Risk
+* ROI
+* Expected performance gain
+
+⸻
+
+FINAL OUTPUT
+
+Generate:
+
+1. Executive Summary
+2. Top 100 Findings
+3. Top 20 Bottlenecks
+4. Top 20 Security Risks
+5. Top 20 Scalability Risks
+6. Top 20 Maintainability Problems
+7. Top 20 Highest ROI Fixes
+8. Production Readiness Score
+9. Enterprise Readiness Score
+10. Chatwoot Gap Analysis
+11. Exact File References For Every Finding
+
+Important:
+
+Never provide generic advice.
+
+Every statement must be backed by actual source code evidence.

@@ -1,5 +1,8 @@
 import { Schema, models, model, type InferSchemaType, type Model } from "mongoose";
 
+const FAILED_JOB_TTL_SECONDS =
+  Number(process.env.FAILED_JOB_TTL_DAYS || 90) * 86400;
+
 const failedJobSchema = new Schema(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: "Tenant", required: false, index: true },
@@ -23,6 +26,7 @@ const failedJobSchema = new Schema(
 
 failedJobSchema.index({ queueName: 1, failedAt: -1 });
 failedJobSchema.index({ tenantId: 1, failedAt: -1 });
+failedJobSchema.index({ createdAt: 1 }, { expireAfterSeconds: FAILED_JOB_TTL_SECONDS });
 
 export type FailedJobDocument = InferSchemaType<typeof failedJobSchema>;
 export const FailedJob = (models.FailedJob as Model<FailedJobDocument>) || model("FailedJob", failedJobSchema);
