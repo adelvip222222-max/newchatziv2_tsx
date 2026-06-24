@@ -13,7 +13,8 @@ export type RealtimeEventType =
   | "heartbeat"
   | "ready"
   | "sync.required"
-  | "error";
+  | "error"
+  | "billing.usage.updated";
 
 export type LegacyRealtimeEventType =
   | "inbox"
