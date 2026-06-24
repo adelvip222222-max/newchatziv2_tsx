@@ -497,7 +497,7 @@ function professionalReply(_text: string, _intent: Intent) { return ""; }
 function shortReply(_text: string, _intent: Intent) { return ""; }
 function friendlyReply(_text: string, _intent: Intent) { return ""; }
 function tagsFor(intent: Intent, sentiment: Sentiment, needsHuman: boolean) {
-  const tags = [intentLabel(intent)];
+  const tags: string[] = [intentLabel(intent)];
   if (sentiment === "negative") tags.push("urgent");
   if (needsHuman) tags.push("escalated");
   return tags;

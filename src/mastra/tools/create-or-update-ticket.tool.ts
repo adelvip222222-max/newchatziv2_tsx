@@ -54,7 +54,7 @@ export const createOrUpdateTicketTool = createTool({
       detectedIntent: {
         shouldCreate: true,
         category: input.category,
-        priority: input.priority,
+        priority: (input.priority || "medium") as "low" | "medium" | "high" | "urgent",
         reason: input.triggerReason,
       },
     });
@@ -74,7 +74,7 @@ export const createOrUpdateTicketTool = createTool({
       botId: input.botId,
       conversationId: input.conversationId,
       category: input.category,
-      priority: input.priority,
+      priority: (input.priority || "medium") as "low" | "medium" | "high" | "urgent",
       triggerReason: input.triggerReason,
       subject: input.subject || String(fields.issueDescription || "").slice(0, 120),
       description: String(fields.issueDescription || input.description || input.subject || ""),
